@@ -45,8 +45,20 @@ let
     src = ./nearestNeighbor;
   };
 
+  scikit-multiflow = python3Packages.buildPythonPackage rec {
+    pname = "scikit-multiflow";  
+    version = "0.3.0";
+    doCheck = false;
+    propagatedBuildInputs = with python3Packages; [ numpy pandas matplotlib sortedcontainers scikitlearn];
+
+    src = python3Packages.fetchPypi {
+      inherit pname version;
+      sha256 = "0cba75131vwsfzrb56i6qvxi0j6ma7rqq4y6896s331sxkrg1zbh";
+    }; 
+  };
+
   python-env = python3.withPackages(pp: with pp; [
-      libNN
+      scikit-multiflow
       numpy
       pandas
       scikitlearn

@@ -6,7 +6,7 @@ let
       (if (isNull pinned) then { inherit pkgs; } else {});
 in with project.pkgs;
 mkShell {
-  name = "SAMkNN-env";
+  name = "SAMkNNReg-env";
   buildInputs = [
     # put packages here.
     project.python-env
