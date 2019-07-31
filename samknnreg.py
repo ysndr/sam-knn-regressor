@@ -1,7 +1,9 @@
 import numpy as np
 import math
 import sklearn.neighbors as sk
+import matplotlib.pyplot as plt
 from skmultiflow.core import RegressorMixin
+ 
 #from skmultiflow.utils.utils import *
 
 class SAMKNNREG(RegressorMixin):
@@ -56,7 +58,7 @@ class SAMKNNREG(RegressorMixin):
         self._adaptSTM()
 
     def _cleanLTM(self, x, y):
-    
+        LTMX = np.array(self.LTMX)
         tree = sk.KDTree(np.array(self.STMX), self.leaf_size, metric='euclidean')
         dist, ind = tree.query(np.asarray([x]), k=self.n_neighbors)
         dist = dist[0]
@@ -65,16 +67,17 @@ class SAMKNNREG(RegressorMixin):
         dmax = np.amax(dist)
         qmax = np.amax(np.abs( (np.array(self.STMy)[ind] - y) / (dist**2) ))
 
-        tree = sk.KDTree(np.array(self.LTMX), self.leaf_size, metric='euclidean')
+        tree = sk.KDTree(LTMX, self.leaf_size, metric='euclidean')
         ind, dist = tree.query_radius(np.asarray([x]), dmax, return_distance=True)
         dist = dist[0]
         dist = np.where(dist < 0.01, 0.01, dist)
         ind = ind[0]
         qtest = np.abs( (np.array(self.LTMy)[ind] - y) / (dist**2) )
         dirty = ind[np.nonzero(qtest > qmax)]
-        for entry in dirty:
-            self.LTMX.__delitem__(entry)
-        #self.LTMX = list(np.delete(np.array(self.LTMX), dirty, axis=0))
+        if (LTMX.shape[0] - len(dirty) < 5):
+            return
+        self.LTMX = list(np.delete(np.array(self.LTMX), dirty, axis=0))
+        self.LTMy = list(np.delete(np.array(self.LTMy), dirty, axis=0))
 
     def _predict(self, X, y, x):
         X = np.asarray(X)
@@ -101,13 +104,31 @@ class SAMKNNREG(RegressorMixin):
 
     def _evaluateMemories(self, x, y):
 
-        self.STMerror += math.log(abs(self.STMpredict(x)-y))
-        self.LTMerror += math.log(abs(self.LTMpredict(x)-y))
-        self.COMBerror += math.log(abs(self.COMBpredict(x)-y))
+        self.STMerror += math.log(1+abs(self.STMpredict(x)-y))
+        self.LTMerror += math.log(1+abs(self.LTMpredict(x)-y))
+        self.COMBerror += math.log(1+abs(self.COMBpredict(x)-y))
         print("Errors:  STM: ", self.STMerror, "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
 
     def _adaptSTM(self):
-        pass
+        STMX = np.array(self.STMX)
+        STMy = np.array(self.STMy)
+        best_SLE = self.STMerror
+        best_size = STMX.shape[0]
+        slice_size = int(STMX.shape[0]/2)
+
+        while (slice_size > 50):
+            SLE = 0
+            for n in range(self.n_neighbors, slice_size):
+                pred = self._predict(STMX[-slice_size:, :], STMy[-slice_size:], STMX[-slice_size+n, :])
+                SLE += math.log(1+abs(pred - STMy[-slice_size+n]))
+            if (SLE < best_SLE):
+                best_SLE = SLE
+                best_size = slice_size
+            slice_size = int(slice_size / 2)
+        
+        self.STMX = list(STMX[-best_size:, :])
+        self.STMy = list(STMy[-best_size:])
+        self.STMerror = best_SLE
 
     def predict(self, X):
         """ predict
@@ -137,7 +158,7 @@ class SAMKNNREG(RegressorMixin):
             return np.array([self.COMBpredict(x) for x in X])
 
     def fit(self, X, y):
-        if (len(self.LTMX) < 10):
+        if (len(self.STMX) < 10):
             self.LTMX = list(X[0:10,:]) 
             self.STMX = list(X[0:10,:]) 
             self.LTMy = list(y[0:10])
@@ -167,4 +188,8 @@ if __name__ == "__main__":
     model = SAMKNNREG()
     model.fit(X, y)
     print(model.predict(np.array([[3],[8],[15],[79]])))
-    #model.print_model()
+    fig, ax = plt.subplots()
+    ax.scatter(model.STMX, model.STMy, label="STM")
+    ax.scatter(model.LTMX, model.LTMy, label="LTM")
+    ax.legend()
+    plt.show()
