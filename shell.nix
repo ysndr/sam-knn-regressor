@@ -11,7 +11,8 @@ mkShell {
     # put packages here.
     project.python-env
   ];
-
+  
   shellHook = ''
+    export MPLBACKEND="qt5Agg"
   '';
 }
