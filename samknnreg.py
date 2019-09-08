@@ -64,17 +64,19 @@ class SAMKNNREG(RegressorMixin):
         for x,y in zip(self.STMX, self.STMy):
             dist, ind = stm_tree.query(np.asarray([x]), k=self.n_neighbors)
             dist = dist[0]
-            dist = np.where(dist < 0.1, 0.1, dist)
+            dist = np.where(dist < 1, 1, dist)
             ind = ind[0]
             dmax = np.amax(dist)
-            qmax = np.amax(np.abs( (np.array(self.STMy)[ind] - y) / (dist**2) ))
+            qmax = np.amax(self._clean_metric(np.array(self.STMy)[ind] - y, dist))
+            print("qmax:", qmax)
 
             discarded_tree = sk.KDTree(discarded_X, self.leaf_size, metric='euclidean')
             ind, dist = discarded_tree.query_radius(np.asarray([x]), dmax, return_distance=True)
             dist = dist[0]
-            dist = np.where(dist < 0.01, 0.01, dist)
+            dist = np.where(dist < 1, 1, dist)
             ind = ind[0]
-            qtest = np.abs( (discarded_y[ind] - y) / (dist**2) )
+            qtest = 0.9*(self._clean_metric(discarded_y[ind] - y, dist))
+            print(qtest)
             dirty = ind[np.nonzero(qtest > qmax)]
             if(dirty.size):
                 discarded_X = np.delete(np.array(discarded_X), dirty, axis=0)
@@ -82,23 +84,26 @@ class SAMKNNREG(RegressorMixin):
                 print("Discarded Set cleaned")
         return discarded_X, discarded_y
 
+    def _clean_metric(self, diffs, dists):
+        return np.abs(diffs / (dists))
+
 
     def _cleanLTM(self, x, y):
         LTMX = np.array(self.LTMX)
         tree = sk.KDTree(np.array(self.STMX), self.leaf_size, metric='euclidean')
         dist, ind = tree.query(np.asarray([x]), k=self.n_neighbors)
         dist = dist[0]
-        dist = np.where(dist < 0.1, 0.1, dist)
+        dist = np.where(dist < 1, 1, dist)
         ind = ind[0]
         dmax = np.amax(dist)
-        qmax = np.amax(np.abs( (np.array(self.STMy)[ind] - y) / (dist**2) ))
+        qmax = np.amax(self._clean_metric( np.array(self.STMy)[ind] -y, dist))
 
         tree = sk.KDTree(LTMX, self.leaf_size, metric='euclidean')
         ind, dist = tree.query_radius(np.asarray([x]), dmax, return_distance=True)
         dist = dist[0]
-        dist = np.where(dist < 0.01, 0.01, dist)
+        dist = np.where(dist < 1, 1, dist)
         ind = ind[0]
-        qtest = np.abs( (np.array(self.LTMy)[ind] - y) / (dist**2) )
+        qtest = 0.9*(self._clean_metric( np.array(self.LTMy)[ind] - y, dist))
         dirty = ind[np.nonzero(qtest > qmax)]
         if(dirty.size):
             if (LTMX.shape[0] - len(dirty) < 5):
@@ -116,7 +121,7 @@ class SAMKNNREG(RegressorMixin):
         tree = sk.KDTree(X, self.leaf_size, metric='euclidean')
         dist, ind = tree.query(np.asarray(np.asarray([x])), k=self.n_neighbors)
         dist = dist[0]
-        dist = np.where(dist < 0.01, 0.01, dist)
+        dist = np.where(dist < 0.1, 0.1, dist)
         ind = ind[0]
         norm = np.sum(1/dist)
         inverse_weighted = (y[ind]) / dist
@@ -142,7 +147,7 @@ class SAMKNNREG(RegressorMixin):
     def _adaptSTM(self):
         STMX = np.array(self.STMX)
         STMy = np.array(self.STMy)
-        best_MLE = self.STMerror
+        best_MLE = self.STMerror/len(self.STMX)
         old_error = best_MLE
         best_size = STMX.shape[0]
         old_size = best_size
@@ -159,21 +164,28 @@ class SAMKNNREG(RegressorMixin):
             slice_size = int(slice_size / 2)
         
         if(old_size != best_size):
+            _, ax = plt.subplots()
             print("ADAPTING: old size & error: ", old_size, old_error, "new size & error: ", best_size, best_MLE)
             discarded_X = STMX[0:-best_size, :]
             discarded_y = STMy[0:-best_size]
             self.STMX = list(STMX[-best_size:, :])
             self.STMy = list(STMy[-best_size:])
             self.STMerror = best_MLE
+            ax.scatter(self.STMX, self.STMy, label="newSTM", s= 13)
             original_discard_size = discarded_X.size
+            ax.scatter(list(discarded_X), list(discarded_y), label="oldDiscard", s= 10)
             discarded_X, discarded_y = self._cleanDiscarded(discarded_X, discarded_y)
+            ax.scatter(list(discarded_X), list(discarded_y), label="cleanedDiscard", s= 10)
             
             if (discarded_X.size):
                 self.LTMX += (list(discarded_X))
                 self.LTMy += (list(discarded_y))
                 print("Added", discarded_X.size, "from", original_discard_size, "to LTM. ")
+                #ax.scatter(self.LTMX, self.LTMy, label="LTM", s= 6)
             else:
                 print("All discarded Samples are dirty")
+            ax.legend()
+            plt.show()
 
     def predict(self, X):
         """ predict
@@ -229,12 +241,17 @@ if __name__ == "__main__":
     y = X**2
     X = np.reshape(X, (X.shape[0], -1))
     """
-
-    data = np.array(datagen.stairs()+datagen.stairs())
-    np.random.shuffle(data)
-    X = data[:,0]
+    generator = datagen.StairsGenerator()
+    generator.prepare_for_use()
+    data = [generator.next_sample(200), generator.next_sample(200), generator.next_sample(200)]
+    X = []
+    y = []
+    for i in range(len(data)):
+        X += data[i][0]
+        y += data[i][1]
+    X = np.array(X)
+    y = np.array(y)
     X = np.reshape(X, (X.shape[0], -1))
-    y = data[:,1]
     print(X)
     print(y)
     model = SAMKNNREG()
@@ -242,8 +259,8 @@ if __name__ == "__main__":
     #print(model.predict(np.array([[3],[8],[15],[79]])))
     print(len(model.LTMX), len(model.STMX))
     fig, ax = plt.subplots()
-    ax.scatter(data[:,0], data[:,1], label="original")
-    ax.scatter(model.STMX, model.STMy, label="STM", s=2)
-    ax.scatter(model.LTMX, model.LTMy, label="LTM", s = 2)
+    ax.scatter(X, y, label="original")
+    ax.scatter(model.STMX, model.STMy, label="STM", s= 6)
+    ax.scatter(model.LTMX, model.LTMy, label="LTM", s = 6)
     ax.legend()
     plt.show()
