@@ -30,7 +30,7 @@ let
   # ------------- Python ----------------
   # for build usage only
 
-  python' = python35.override {  
+  python' = python3.override {  
     packageOverrides = self: super: {
       pylint = super.pylint.overridePythonAttrs(old: rec {
         doCheck = false;  
@@ -57,7 +57,7 @@ let
     }; 
   };
 
-  python-env = python3.withPackages(pp: with pp; [
+  python-env = python'.withPackages(pp: with pp; [
       scikit-multiflow
       numpy
       pandas
@@ -68,11 +68,14 @@ let
       virtualenv
       pylint
       autopep8
+      pyqt5
+      pycairo
   ]);
   # --------------- Commands ----------------
 
 
 in {
   #inherit (pkgs)  libyaml libiconv;
+  inherit pkgs;
   python-env = python-env;
 } 
