@@ -13,20 +13,13 @@ def sin(seed = None, size = 1000, granularity=30, cont=0.01, abrupt=100):
     data.append([x, math.sin(start + x/(2*math.pi*granularity)) + np.random.normal(scale=0.05) + cont])
   return data
 
-def stairs(seed = None, size = 1000, granularity=30, cont=0.01, abrupt=100):
+def stairs(seed = None, size = 1000, granularity=5, cont=0.01, abrupt=300):
   if seed:
     np.random.seed(seed=seed)
-  start = np.random.rand()*100
+  start = 0
   data = []
   for x in range(size):
     if np.random.rand() < 1/abrupt:
       start = start + (200 + np.random.rand() * 200)/granularity
-    data.append([x, start + x/granularity + np.random.normal(scale=0.05) + cont])
+    data.append([x, start + x/granularity + np.random.normal(scale=5) + cont])
   return data
-
-
-#%%
-print(stairs())
-
-
-#%%

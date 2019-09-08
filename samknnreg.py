@@ -1,4 +1,5 @@
 import numpy as np
+import datagen
 import math
 import sklearn.neighbors as sk
 import matplotlib.pyplot as plt
@@ -45,7 +46,8 @@ class SAMKNNREG(RegressorMixin):
         """
         r = X.shape[0]
         for i in range(r):
-            print("fitting:", X[i,:], y[i])
+            if(i%100 == 0):
+                print("fitting:", X[i,:], y[i])
             self._partial_fit(X[i,:], y[i])
 
     def _partial_fit(self, x, y):
@@ -56,6 +58,30 @@ class SAMKNNREG(RegressorMixin):
         self.STMy.append(y)
 
         self._adaptSTM()
+
+    def _cleanDiscarded(self, discarded_X, discarded_y):
+        stm_tree = sk.KDTree(np.array(self.STMX), self.leaf_size, metric='euclidean')
+        for x,y in zip(self.STMX, self.STMy):
+            dist, ind = stm_tree.query(np.asarray([x]), k=self.n_neighbors)
+            dist = dist[0]
+            dist = np.where(dist < 0.1, 0.1, dist)
+            ind = ind[0]
+            dmax = np.amax(dist)
+            qmax = np.amax(np.abs( (np.array(self.STMy)[ind] - y) / (dist**2) ))
+
+            discarded_tree = sk.KDTree(discarded_X, self.leaf_size, metric='euclidean')
+            ind, dist = discarded_tree.query_radius(np.asarray([x]), dmax, return_distance=True)
+            dist = dist[0]
+            dist = np.where(dist < 0.01, 0.01, dist)
+            ind = ind[0]
+            qtest = np.abs( (discarded_y[ind] - y) / (dist**2) )
+            dirty = ind[np.nonzero(qtest > qmax)]
+            if(dirty.size):
+                discarded_X = np.delete(np.array(discarded_X), dirty, axis=0)
+                discarded_y = np.delete(np.array(discarded_y), dirty, axis=0)
+                print("Discarded Set cleaned")
+        return discarded_X, discarded_y
+
 
     def _cleanLTM(self, x, y):
         LTMX = np.array(self.LTMX)
@@ -74,10 +100,14 @@ class SAMKNNREG(RegressorMixin):
         ind = ind[0]
         qtest = np.abs( (np.array(self.LTMy)[ind] - y) / (dist**2) )
         dirty = ind[np.nonzero(qtest > qmax)]
-        if (LTMX.shape[0] - len(dirty) < 5):
-            return
-        self.LTMX = list(np.delete(np.array(self.LTMX), dirty, axis=0))
-        self.LTMy = list(np.delete(np.array(self.LTMy), dirty, axis=0))
+        if(dirty.size):
+            if (LTMX.shape[0] - len(dirty) < 5):
+                print("LTM dirty but too small!")
+                return
+            self.LTMX = list(np.delete(np.array(self.LTMX), dirty, axis=0))
+            self.LTMy = list(np.delete(np.array(self.LTMy), dirty, axis=0))
+            print("LTM cleaned")
+
 
     def _predict(self, X, y, x):
         X = np.asarray(X)
@@ -107,28 +137,43 @@ class SAMKNNREG(RegressorMixin):
         self.STMerror += math.log(1+abs(self.STMpredict(x)-y))
         self.LTMerror += math.log(1+abs(self.LTMpredict(x)-y))
         self.COMBerror += math.log(1+abs(self.COMBpredict(x)-y))
-        print("Errors:  STM: ", self.STMerror, "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
+        #print("Errors:  STM: ", self.STMerror, "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
 
     def _adaptSTM(self):
         STMX = np.array(self.STMX)
         STMy = np.array(self.STMy)
-        best_SLE = self.STMerror
+        best_MLE = self.STMerror
+        old_error = best_MLE
         best_size = STMX.shape[0]
+        old_size = best_size
         slice_size = int(STMX.shape[0]/2)
-
-        while (slice_size > 50):
-            SLE = 0
+        while (slice_size >= 50):
+            MLE = 0
             for n in range(self.n_neighbors, slice_size):
-                pred = self._predict(STMX[-slice_size:, :], STMy[-slice_size:], STMX[-slice_size+n, :])
-                SLE += math.log(1+abs(pred - STMy[-slice_size+n]))
-            if (SLE < best_SLE):
-                best_SLE = SLE
+                pred = self._predict(STMX[-slice_size:-slice_size+n, :], STMy[-slice_size:-slice_size+n], STMX[-slice_size+n, :])
+                MLE += math.log(1+abs(pred - STMy[-slice_size+n]))
+            MLE = MLE/slice_size
+            if (MLE < best_MLE):
+                best_MLE = MLE
                 best_size = slice_size
             slice_size = int(slice_size / 2)
         
-        self.STMX = list(STMX[-best_size:, :])
-        self.STMy = list(STMy[-best_size:])
-        self.STMerror = best_SLE
+        if(old_size != best_size):
+            print("ADAPTING: old size & error: ", old_size, old_error, "new size & error: ", best_size, best_MLE)
+            discarded_X = STMX[0:-best_size, :]
+            discarded_y = STMy[0:-best_size]
+            self.STMX = list(STMX[-best_size:, :])
+            self.STMy = list(STMy[-best_size:])
+            self.STMerror = best_MLE
+            original_discard_size = discarded_X.size
+            discarded_X, discarded_y = self._cleanDiscarded(discarded_X, discarded_y)
+            
+            if (discarded_X.size):
+                self.LTMX += (list(discarded_X))
+                self.LTMy += (list(discarded_y))
+                print("Added", discarded_X.size, "from", original_discard_size, "to LTM. ")
+            else:
+                print("All discarded Samples are dirty")
 
     def predict(self, X):
         """ predict
@@ -178,18 +223,27 @@ class SAMKNNREG(RegressorMixin):
         print(self.STMX)
 
 if __name__ == "__main__":
-    
+    """
     X = np.arange(0, 1000, 5)
     np.random.shuffle(X)
     y = X**2
     X = np.reshape(X, (X.shape[0], -1))
+    """
+
+    data = np.array(datagen.stairs()+datagen.stairs())
+    np.random.shuffle(data)
+    X = data[:,0]
+    X = np.reshape(X, (X.shape[0], -1))
+    y = data[:,1]
     print(X)
     print(y)
     model = SAMKNNREG()
     model.fit(X, y)
-    print(model.predict(np.array([[3],[8],[15],[79]])))
+    #print(model.predict(np.array([[3],[8],[15],[79]])))
+    print(len(model.LTMX), len(model.STMX))
     fig, ax = plt.subplots()
-    ax.scatter(model.STMX, model.STMy, label="STM")
-    ax.scatter(model.LTMX, model.LTMy, label="LTM")
+    ax.scatter(data[:,0], data[:,1], label="original")
+    ax.scatter(model.STMX, model.STMy, label="STM", s=2)
+    ax.scatter(model.LTMX, model.LTMy, label="LTM", s = 2)
     ax.legend()
     plt.show()
