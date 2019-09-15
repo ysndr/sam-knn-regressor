@@ -1,14 +1,23 @@
 # To add a new cell, type '#%%'
 # To add a new markdown cell, type '#%% [markdown]'
+#%%
+# %load_ext autoreload
+# %autoreload 2
+# %matplotlib inline
+
+
 
 #%%
-
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 from sklearn.preprocessing import StandardScaler
 from skmultiflow.data import DataStream
 from skmultiflow.evaluation import EvaluatePrequential
+from skmultiflow.trees import RegressionHAT
+import samknnreg
+from importlib import reload
 from samknnreg import SAMKNNRegressor
+
 #%%
 df = pd.read_csv(
     "weatherHistory.csv",
@@ -52,16 +61,20 @@ y.plot()
 
 #%%
 sam = SAMKNNRegressor()
+hat = RegressionHAT()
 ds = DataStream(X, y=y.values)
 ds.prepare_for_use()
 
 
 evaluator = EvaluatePrequential(max_samples=10000,
-                                max_time=1000,
                                 show_plot=True,
                                 metrics=['mean_square_error'])
 
-evaluator.evaluate(stream=ds, model=sam)
-
+#%%
+evaluator.evaluate(
+    stream=ds,
+    model=[sam, hat],
+    model_names=["SAM", "Hoeffding Tree Regressor"])
+ 
 
 #%%
