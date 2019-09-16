@@ -4,7 +4,8 @@ import math
 import sklearn.neighbors as sk
 import matplotlib.pyplot as plt
 from skmultiflow.core import RegressorMixin
- 
+from pykdtree.kdtree import KDTree
+
 #from skmultiflow.utils.utils import *
 
 class SAMKNNRegressor(RegressorMixin):
@@ -13,17 +14,13 @@ class SAMKNNRegressor(RegressorMixin):
         """
         test text
         """
-        self.n_neighbors = n_neighbors
-        self.max_LTM_size = max_LTM_size
+        self.n_neighbors = n_neighbors # k
+        self.max_LTM_size = max_LTM_size # LTM size 
         self.STMX, self.STMy, self.LTMX, self.LTMy = ([], [], [], [])
         self.STMerror, self.LTMerror, self.COMBerror = (0, 0, 0)
-        #self.window = InstanceWindow(max_size=max_window_size, dtype=float)
-        self.c = 0
-        self.first_fit = True
         self.leaf_size = leaf_size
-        self.nominal_attributes = nominal_attributes
-        if self.nominal_attributes is None:
-            self._nominal_attributes = []
+        #self.window = InstanceWindow(max_size=max_window_size, dtype=float)
+
 
     def partial_fit(self, X, y, sample_weight=None):
         """ Partially (incrementally) fit the model.
@@ -55,6 +52,7 @@ class SAMKNNRegressor(RegressorMixin):
         self.STMX.append(x)
         self.STMy.append(y)
         
+        # build up initial LTM
         if len(self.LTMX) < self.n_neighbors:
             self.LTMX.append(x)
             self.LTMy.append(y)
@@ -67,8 +65,8 @@ class SAMKNNRegressor(RegressorMixin):
 
         self._adaptSTM()
 
-    def _cleanDiscarded(self, discarded_X, discarded_y):
-        stm_tree = sk.KDTree(np.array(self.STMX), self.leaf_size, metric='euclidean')
+    def _cleanDiscarded(self, discarded_X, discarded_y):        
+        stm_tree = KDTree(np.array(self.STMX)) #, self.leaf_size, metric='euclidean')
         for x,y in zip(self.STMX, self.STMy):
             dist, ind = stm_tree.query(np.asarray([x]), k=self.n_neighbors)
             dist = dist[0]
@@ -78,11 +76,11 @@ class SAMKNNRegressor(RegressorMixin):
             qmax = np.amax(self._clean_metric(np.array(self.STMy)[ind] - y, dist))
             # print("qmax:", qmax)
 
-            discarded_tree = sk.KDTree(discarded_X, self.leaf_size, metric='euclidean')
-            ind, dist = discarded_tree.query_radius(np.asarray([x]), dmax, return_distance=True)
-            dist = dist[0]
+            discarded_tree = KDTree(discarded_X)#, self.leaf_size, metric='euclidean')
+            dist, ind = discarded_tree.query(np.asarray([x]), distance_upper_bound=dmax)
+            
             dist = np.where(dist < 1, 1, dist)
-            ind = ind[0]
+           
             qtest = 0.9*(self._clean_metric(discarded_y[ind] - y, dist))
             # print(qtest)
             dirty = ind[np.nonzero(qtest > qmax)]
@@ -98,7 +96,7 @@ class SAMKNNRegressor(RegressorMixin):
 
     def _cleanLTM(self, x, y):
         LTMX = np.array(self.LTMX)
-        tree = sk.KDTree(np.array(self.STMX), self.leaf_size, metric='euclidean')
+        tree = KDTree(np.array(self.STMX))#, self.leaf_size, metric='euclidean')
         dist, ind = tree.query(np.asarray([x]), k=self.n_neighbors)
         dist = dist[0]
         dist = np.where(dist < 1, 1, dist)
@@ -107,11 +105,13 @@ class SAMKNNRegressor(RegressorMixin):
         dmax = np.amax(dist)
         qmax = np.amax(self._clean_metric( np.array(self.STMy)[ind] -y, dist))
 
-        tree = sk.KDTree(LTMX, self.leaf_size, metric='euclidean')
-        ind, dist = tree.query_radius(np.asarray([x]), dmax, return_distance=True)
-        dist = dist[0]
+        tree = KDTree(LTMX) #, self.leaf_size, metric='euclidean')
+        dist, ind = tree.query(np.asarray([x]), distance_upper_bound=dmax)
+
+        if ind == len(LTMX): # no points in radius were found
+            return
+
         dist = np.where(dist < 1, 1, dist)
-        ind = ind[0]
         qtest = 0.9*(self._clean_metric( np.array(self.LTMy)[ind] - y, dist))
         dirty = ind[np.nonzero(qtest > qmax)]
         if(dirty.size):
@@ -127,7 +127,7 @@ class SAMKNNRegressor(RegressorMixin):
         X = np.array(X)
         y = np.array(y)
 
-        tree = sk.KDTree(X, self.leaf_size, metric='euclidean')
+        tree = KDTree(X) #, self.leaf_size, metric='euclidean')
         dist, ind = tree.query(np.asarray(np.asarray([x])), k=self.n_neighbors)
         dist = dist[0]
         dist = np.where(dist < 0.1, 0.1, dist)
@@ -173,18 +173,18 @@ class SAMKNNRegressor(RegressorMixin):
             slice_size = int(slice_size / 2)
         
         if(old_size != best_size):
-            _, ax = plt.subplots()
+            #_, ax = plt.subplots()
             # print("ADAPTING: old size & error: ", old_size, old_error, "new size & error: ", best_size, best_MLE)
             discarded_X = STMX[0:-best_size, :]
             discarded_y = STMy[0:-best_size]
             self.STMX = list(STMX[-best_size:, :])
             self.STMy = list(STMy[-best_size:])
             self.STMerror = best_MLE
-            ax.scatter(self.STMX, self.STMy, label="newSTM", s= 13)
+            #ax.scatter(self.STMX, self.STMy, label="newSTM", s= 13)
             original_discard_size = discarded_X.size
-            ax.scatter(list(discarded_X), list(discarded_y), label="oldDiscard", s= 10)
+            #ax.scatter(list(discarded_X), list(discarded_y), label="oldDiscard", s= 10)
             discarded_X, discarded_y = self._cleanDiscarded(discarded_X, discarded_y)
-            ax.scatter(list(discarded_X), list(discarded_y), label="cleanedDiscard", s= 10)
+            #ax.scatter(list(discarded_X), list(discarded_y), label="cleanedDiscard", s= 10)
             
             if (discarded_X.size):
                 self.LTMX += (list(discarded_X))
@@ -193,8 +193,8 @@ class SAMKNNRegressor(RegressorMixin):
                 #ax.scatter(self.LTMX, self.LTMy, label="LTM", s= 6)
             # else:
                 # print("All discarded Samples are dirty")
-            ax.legend()
-            plt.show()
+            #ax.legend()
+            #plt.show()
 
     def predict(self, X):
         """ predict
