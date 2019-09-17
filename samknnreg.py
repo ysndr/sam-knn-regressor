@@ -286,7 +286,7 @@ class SAMKNNRegressor(RegressorMixin):
                 
 
 
-                print("Added", discarded_X.size, "from", original_discard_size, "to LTM. ")
+                print("Added", len(discarded_X), "of", original_discard_size, "to LTM. ")
             else:
                 print("All discarded Samples are dirty")
             plt.figlegend()
@@ -321,7 +321,7 @@ class SAMKNNRegressor(RegressorMixin):
             return np.array([self.COMBpredict(x) for x in X])
 
     def fit(self, X, y):
-        if (len(self.STMX) < 10):
+        if (len(self.STMX) < self.n_neighbors):
             self.LTMX = list(X[0:10,:]) 
             self.STMX = list(X[0:10,:]) 
             self.LTMy = list(y[0:10])
