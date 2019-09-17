@@ -76,10 +76,14 @@ class SAMKNNRegressor(RegressorMixin):
         stm_tree = KDTree(np.array(self.STMX))
         STMy = np.array(self.STMy)
 
+        clean_mask = np.zeros(discarded_X.shape[0], dtype=bool)
+
         for x,y in zip(self.STMX, self.STMy):
-            dist, ind = stm_tree.query(np.array([x]), k=self.n_neighbors)
+            # searching for points from the stm in the stm will also return that points, so we query one more to get k neighbours
+            dist, ind = stm_tree.query(np.array([x]), k=self.n_neighbors +1)
             dist = dist[0]
             ind = ind[0]
+
             
             """
             find weighted maximum difference and max distance among next n neighbours in STM
@@ -104,15 +108,22 @@ class SAMKNNRegressor(RegressorMixin):
             dist = dist[keep]
 
 
-            disc_w_diff = 0.9*(self._clean_metric(discarded_y[ind] - y, dist))
-            dirty =  ind[np.nonzero(disc_w_diff < w_diff_max)]
+            disc_w_diff = self._clean_metric(discarded_y[ind] - y, dist, dist_max)
+                        
+            clean = ind[disc_w_diff < w_diff_max]
 
-            if(dirty.size):
-                discarded_X = np.delete(discarded_X, dirty, axis=0)
-                discarded_y = np.delete(discarded_y, dirty, axis=0)
-                if len(discarded_X) == 0:
-                    break
-                # print("Discarded Set cleaned")
+            """
+            We create a mask which us used to drop all values in the discarded
+            set whose weighted difference is to far from __all__ points.
+            E.g. it does not appear in neighbourhood of any other point or
+            is too different if it does.
+            """
+
+            clean_mask[clean] = True
+
+        discarded_X = discarded_X[clean_mask]
+        discarded_y = discarded_y[clean_mask]
+
         return discarded_X, discarded_y
 
     def _clean_metric(self, diffs, dists, norm=1.):
@@ -155,8 +166,6 @@ class SAMKNNRegressor(RegressorMixin):
         #dist = np.where(dist < 1, 1, dist) ^
         qstest = .5 * self._clean_metric(LTMy[ind] - y, dist, dist_max)
         dirty = ind[qstest > w_diff_max]
-
-        print(dirty)
 
 
         if(dirty.size):
@@ -349,7 +358,7 @@ if __name__ == "__main__":
     X = np.array(X).astype('d')/np.amax(X)
     y = np.array(y).astype('d')/np.amax(y)
     X = np.reshape(X, (X.shape[0], -1))
-    print(X)
+    # print(X)
     # print(y)
     model = SAMKNNRegressor(show_live_plot=True)
     model.fit(X, y)
