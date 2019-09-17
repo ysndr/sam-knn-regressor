@@ -60,8 +60,8 @@ tdf.drop(columns=["Pressure (millibars)", "Wind Bearing (degrees)"]).resample("W
 
 tdf.info()
 
-X = tdf[["Temperature (C)", "Humidity", "Wind Speed (km/h)"]].resample("6H").mean()
-y = tdf[["Apparent Temperature (C)"]].resample("6H").mean()
+X = tdf[["Pressure (millibars)", "Humidity", "Wind Speed (km/h)"]].resample("6H").mean()
+y = tdf[["Temperature (C)"]].resample("6H").mean()
 
 X.plot(subplots=True, layout=(1,3))
 y.plot()
