@@ -14,10 +14,11 @@ import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 from sklearn.preprocessing import MinMaxScaler
 from skmultiflow.data import DataStream
 from skmultiflow.evaluation import EvaluatePrequential
-from skmultiflow.trees import RegressionHAT
+from skmultiflow.trees import RegressionHAT, RegressionHoeffdingTree
 import samknnreg
 from importlib import reload
 from samknnreg import SAMKNNRegressor
+import matplotlib.pyplot as plt
 
 
 
@@ -47,19 +48,22 @@ tdf = pd.DataFrame(scaler.fit_transform(df.values), columns=df.columns.copy(), i
 
 
 #%% 
-ax = df.drop(columns=["Pressure (millibars)", "Wind Bearing (degrees)"]).resample("W").mean().plot(title="unscaled")
+
+fig, ax = plt.subplots(ncols=2)
+
+df.drop(columns=["Pressure (millibars)", "Wind Bearing (degrees)"]).resample("W").mean().plot(ax=ax[0], title="unscaled")
 
 
-tdf.drop(columns=["Pressure (millibars)", "Wind Bearing (degrees)"]).resample("W").mean().plot(ax=ax, title="scaled")
+tdf.drop(columns=["Pressure (millibars)", "Wind Bearing (degrees)"]).resample("W").mean().plot(ax=ax[1], title="scaled")
 
 #%%
 
 tdf.info()
 
-X = tdf[["Temperature (C)", "Humidity", "Wind Speed (km/h)"]]
-y = tdf[["Apparent Temperature (C)"]]
+X = tdf[["Temperature (C)", "Humidity", "Wind Speed (km/h)"]].resample("6H").mean()
+y = tdf[["Apparent Temperature (C)"]].resample("6H").mean()
 
-X.plot()
+X.plot(subplots=True, layout=(1,3))
 y.plot()
 
 #%%
@@ -69,14 +73,14 @@ from samknnreg import SAMKNNRegressor
 
 sam = SAMKNNRegressor()
 hat = RegressionHAT()
-ds = DataStream(X[::12], y=y.values[::12])
+rht = RegressionHoeffdingTree()
+ds = DataStream(X, y=y)
 ds.prepare_for_use()
 
 
-evaluator = EvaluatePrequential(max_samples=7500,
-                                show_plot=True,
+evaluator = EvaluatePrequential(show_plot=True,
                                 n_wait=200,
-                                restart_stream=True,
+                                batch_size=28,
                                 metrics=[
                                     'mean_square_error',
                                     'true_vs_predicted'])
@@ -84,8 +88,8 @@ evaluator = EvaluatePrequential(max_samples=7500,
 #%%
 evaluator.evaluate(
     stream=ds,
-    model=[sam, hat],
-    model_names=["SAM", "Hoeffding Tree Regressor"])
+    model=[sam, rht, hat ],
+    model_names=["SAM", "Hoeffding Tree Regressor", "Hoeffding Tree Regressor (Adaptive)"])
  
 
 #%%
