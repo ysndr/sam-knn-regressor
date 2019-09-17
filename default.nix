@@ -90,6 +90,7 @@ let
       pycairo
       jupyter
       setuptools
+      pykdtree
   ]);
   # --------------- Commands ----------------
 
