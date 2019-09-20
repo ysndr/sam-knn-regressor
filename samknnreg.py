@@ -360,7 +360,7 @@ if __name__ == "__main__":
     X = np.reshape(X, (X.shape[0], -1))
     # print(X)
     # print(y)
-    model = SAMKNNRegressor(show_live_plot=True)
+    model = SAMKNNRegressor()
     model.fit(X, y)
     #print(model.predict(np.array([[3],[8],[15],[79]])))
     print(len(model.LTMX), len(model.STMX))
