@@ -243,7 +243,7 @@ if __name__ == "__main__":
     """
     generator = datagen.StairsGenerator()
     generator.prepare_for_use()
-    data = [generator.next_sample(200), generator.next_sample(200), generator.next_sample(200)]
+    data = [generator.next_sample(500), generator.next_sample(500), generator.next_sample(500)]
     X = []
     y = []
     for i in range(len(data)):

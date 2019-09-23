@@ -158,7 +158,8 @@ class StairsGenerator(Stream):
             if x > batch_size/2 and self.cont == 2:
                 self.cont = 5*np.random.rand()
             if self._random_state.rand() < 1/self.abrupt_drift_rate:
-                self.offset += 1
+                #self.offset += 1
+                pass
             y.append(self.offset + (x*self.cont)/self.granularity + self._random_state.normal(scale=1))
             X.append(x)
         self._x_idx += batch_size
