@@ -35,6 +35,10 @@ let
       pylint = super.pylint.overridePythonAttrs(old: rec {
         doCheck = false;  
       });
+      scikitlearn = super.scikitlearn.overridePythonAttrs( old: rec {
+        doCheck = false; 
+        checkPhase = ":";
+      });
     };
   };
 
@@ -45,11 +49,11 @@ let
     src = ./nearestNeighbor;
   };
 
-  scikit-multiflow = python3Packages.buildPythonPackage rec {
+  scikit-multiflow =  python'.pkgs.buildPythonPackage rec {
     pname = "scikit-multiflow";  
     version = "0.3.0";
     doCheck = false;
-    propagatedBuildInputs = with python3Packages; [ numpy pandas matplotlib sortedcontainers scikitlearn];
+    propagatedBuildInputs = with python'.pkgs; [ numpy pandas matplotlib sortedcontainers scikitlearn];
 
     src = python3Packages.fetchPypi {
       inherit pname version;
@@ -57,8 +61,22 @@ let
     }; 
   };
 
+  ptvsd = python3Packages.buildPythonPackage rec {
+    pname = "ptvsd";  
+    version = "4.3.2";
+    doCheck = false;
+    propagatedBuildInputs = with python3Packages; [ ];
+    format = "wheel";
+    src = python3Packages.fetchPypi {
+      inherit pname version;
+      sha256 = "13g685gjbfpwvzahz3m3d46v770n70kyvcj0a18h5fv8c1rkg4a5";
+      format = "wheel";
+    }; 
+  };  
+
   python-env = python'.withPackages(pp: with pp; [
       scikit-multiflow
+      ptvsd
       numpy
       pandas
       scikitlearn
@@ -70,6 +88,9 @@ let
       autopep8
       pyqt5
       pycairo
+      jupyter
+      setuptools
+      pykdtree
   ]);
   # --------------- Commands ----------------
 

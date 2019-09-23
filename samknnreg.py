@@ -4,26 +4,27 @@ import math
 import sklearn.neighbors as sk
 import matplotlib.pyplot as plt
 from skmultiflow.core import RegressorMixin
- 
+from pykdtree.kdtree import KDTree
+
+
 #from skmultiflow.utils.utils import *
 
-class SAMKNNREG(RegressorMixin):
+class SAMKNNRegressor(RegressorMixin):
 
     def __init__(self, n_neighbors=5, max_LTM_size=5000, leaf_size=30, nominal_attributes=None):
         """
         test text
         """
-        self.n_neighbors = n_neighbors
-        self.max_LTM_size = max_LTM_size
+        self.n_neighbors = n_neighbors # k
+        self.max_LTM_size = max_LTM_size # LTM size 
         self.STMX, self.STMy, self.LTMX, self.LTMy = ([], [], [], [])
         self.STMerror, self.LTMerror, self.COMBerror = (0, 0, 0)
-        #self.window = InstanceWindow(max_size=max_window_size, dtype=float)
-        self.c = 0
-        self.first_fit = True
         self.leaf_size = leaf_size
-        self.nominal_attributes = nominal_attributes
-        if self.nominal_attributes is None:
-            self._nominal_attributes = []
+
+        self.adaptions = 0
+            
+        #self.window = InstanceWindow(max_size=max_window_size, dtype=float)
+
 
     def partial_fit(self, X, y, sample_weight=None):
         """ Partially (incrementally) fit the model.
@@ -44,89 +45,165 @@ class SAMKNNREG(RegressorMixin):
         self
 
         """
+
         r = X.shape[0]
         for i in range(r):
-            if(i%100 == 0):
-                print("fitting:", X[i,:], y[i])
+            # if(i%100 == 0):
+                # print("fitting:", X[i,:], y[i])
             self._partial_fit(X[i,:], y[i])
 
     def _partial_fit(self, x, y):
-        self._evaluateMemories(x, y)
-        self._cleanLTM(x, y)
-
         self.STMX.append(x)
         self.STMy.append(y)
+        
+        # build up initial LTM
+        if len(self.LTMX) < self.n_neighbors:
+            self.LTMX.append(x)
+            self.LTMy.append(y)
 
+        if len(self.STMX) < self.n_neighbors:
+            return
+
+        self._evaluateMemories(x, y)
+        start_time = time.time()
         self._adaptSTM()
+        end_time = time.time()
 
-    def _cleanDiscarded(self, discarded_X, discarded_y):
-        stm_tree = sk.KDTree(np.array(self.STMX), self.leaf_size, metric='euclidean')
+        # print(end_time - start_time, "seconds taken for adaptSTM")
+        self._cleanLTM(x, y)
+
+    def _cleanDiscarded(self, discarded_X, discarded_y):        
+        stm_tree = KDTree(np.array(self.STMX))
+        STMy = np.array(self.STMy)
+
+        clean_mask = np.zeros(discarded_X.shape[0], dtype=bool)
+
         for x,y in zip(self.STMX, self.STMy):
-            dist, ind = stm_tree.query(np.asarray([x]), k=self.n_neighbors)
+            # searching for points from the stm in the stm will also return that points, so we query one more to get k neighbours
+            dist, ind = stm_tree.query(np.array([x]), k=self.n_neighbors +1)
             dist = dist[0]
-            dist = np.where(dist < 1, 1, dist)
             ind = ind[0]
-            dmax = np.amax(dist)
-            qmax = np.amax(self._clean_metric(np.array(self.STMy)[ind] - y, dist))
-            print("qmax:", qmax)
 
-            discarded_tree = sk.KDTree(discarded_X, self.leaf_size, metric='euclidean')
-            ind, dist = discarded_tree.query_radius(np.asarray([x]), dmax, return_distance=True)
-            dist = dist[0]
-            dist = np.where(dist < 1, 1, dist)
-            ind = ind[0]
-            qtest = 0.9*(self._clean_metric(discarded_y[ind] - y, dist))
-            print(qtest)
-            dirty = ind[np.nonzero(qtest > qmax)]
-            if(dirty.size):
-                discarded_X = np.delete(np.array(discarded_X), dirty, axis=0)
-                discarded_y = np.delete(np.array(discarded_y), dirty, axis=0)
-                print("Discarded Set cleaned")
+            
+            """
+            find weighted maximum difference and max distance among next n neighbours in STM
+            """
+            dist_max = np.amax(dist)
+            w_diff = self._clean_metric(STMy[ind] - y, dist, dist_max)
+            w_diff_max = np.amax(w_diff)
+
+            # print("w_diff_max:", w_diff_max)
+            """
+            Query all points among the discarded that lie inside the maximum distance. Delete every point that has a greater weighted difference than the previously gathered maximum distance.
+            """
+            discarded_tree = KDTree(discarded_X)
+
+            dist, ind = discarded_tree.query(
+                np.array([x]),
+                k=len(discarded_X),
+                distance_upper_bound=dist_max)
+            
+            keep = ind < len(discarded_X)
+            ind = ind[keep]
+            dist = dist[keep]
+
+
+            disc_w_diff = self._clean_metric(discarded_y[ind] - y, dist, dist_max)
+                        
+            clean = ind[disc_w_diff < w_diff_max]
+
+            """
+            We create a mask which us used to drop all values in the discarded
+            set whose weighted difference is to far from __all__ points.
+            E.g. it does not appear in neighbourhood of any other point or
+            is too different if it does.
+            """
+
+            clean_mask[clean] = True
+
+        discarded_X = discarded_X[clean_mask]
+        discarded_y = discarded_y[clean_mask]
+
         return discarded_X, discarded_y
 
-    def _clean_metric(self, diffs, dists):
-        return np.abs(diffs / (dists))
+    def _clean_metric(self, diffs, dists, norm=1.):
+        # inverse distance weighting
+        # TODO: find factor
+        return np.abs(diffs) * 1/np.exp(dists/norm)
+        
 
 
     def _cleanLTM(self, x, y):
         LTMX = np.array(self.LTMX)
-        tree = sk.KDTree(np.array(self.STMX), self.leaf_size, metric='euclidean')
-        dist, ind = tree.query(np.asarray([x]), k=self.n_neighbors)
-        dist = dist[0]
-        dist = np.where(dist < 1, 1, dist)
-        ind = ind[0]
-        dmax = np.amax(dist)
-        qmax = np.amax(self._clean_metric( np.array(self.STMy)[ind] -y, dist))
+        LTMy = np.array(self.LTMy)
+        STMX = np.array(self.STMX)
+        STMy = np.array(self.STMy)
 
-        tree = sk.KDTree(LTMX, self.leaf_size, metric='euclidean')
-        ind, dist = tree.query_radius(np.asarray([x]), dmax, return_distance=True)
-        dist = dist[0]
-        dist = np.where(dist < 1, 1, dist)
-        ind = ind[0]
-        qtest = 0.9*(self._clean_metric( np.array(self.LTMy)[ind] - y, dist))
-        dirty = ind[np.nonzero(qtest > qmax)]
+        stmtree = KDTree(STMX)#, self.leaf_size, metric='euclidean')
+        
+        dist, ind = stmtree.query(np.array([x]), k=self.n_neighbors)
+        dist = dist[0] # only queriing one point
+        ind = ind[0] # ^
+        #dist = np.where(dist < 1, 1, dist) # TODO: what about really close points?
+        
+        # print(dist)
+        dist_max = np.amax(dist)
+        
+        qs = self._clean_metric(STMy[ind] - y, dist, dist_max)
+        w_diff_max = np.amax(qs)
+
+        ltmtree = KDTree(LTMX) #, self.leaf_size, metric='euclidean')
+        dist, ind = ltmtree.query(
+            np.array([x]),
+            k=len(LTMX),
+            distance_upper_bound=dist_max)
+
+        keep = ind < len(LTMX)
+        ind = ind[keep]
+        dist = dist[keep]
+
+
+        #dist = np.where(dist < 1, 1, dist) ^
+        qstest = .5 * self._clean_metric(LTMy[ind] - y, dist, dist_max)
+        dirty = ind[qstest > w_diff_max]
+
+
         if(dirty.size):
             if (LTMX.shape[0] - len(dirty) < 5):
-                print("LTM dirty but too small!")
+                # print("LTM dirty but too small!")
                 return
-            self.LTMX = list(np.delete(np.array(self.LTMX), dirty, axis=0))
-            self.LTMy = list(np.delete(np.array(self.LTMy), dirty, axis=0))
-            print("LTM cleaned")
+            self.LTMX = np.delete(LTMX, dirty, axis=0).tolist()
+            self.LTMy = np.delete(LTMy, dirty, axis=0).tolist()
+            # print("LTM cleaned")
 
 
     def _predict(self, X, y, x):
-        X = np.asarray(X)
-        y = np.asarray(y)
+        X = np.array(X)
+        y = np.array(y)
 
-        tree = sk.KDTree(X, self.leaf_size, metric='euclidean')
-        dist, ind = tree.query(np.asarray(np.asarray([x])), k=self.n_neighbors)
+        tree = KDTree(X) #, self.leaf_size, metric='euclidean')
+        dist, ind = tree.query(np.array([x]), k=self.n_neighbors)
+
         dist = dist[0]
-        dist = np.where(dist < 0.1, 0.1, dist)
         ind = ind[0]
-        norm = np.sum(1/dist)
-        inverse_weighted = (y[ind]) / dist
-        pred = ( np.sum(inverse_weighted) / norm )
-        return pred
+
+        clean = np.nonzero(dist)
+        dist = dist[clean]
+        ind = ind[clean]
+
+
+        if len(dist) == 0:
+            return 0
+
+        
+
+        pred = np.sum(y[ind] / dist)
+        norm = np.sum(1 / dist)
+
+        if norm == 0:
+            return 1
+
+        return pred / norm
 
     def STMpredict(self, x):
         return self._predict(self.STMX, self.STMy, x)
@@ -147,45 +224,74 @@ class SAMKNNREG(RegressorMixin):
     def _adaptSTM(self):
         STMX = np.array(self.STMX)
         STMy = np.array(self.STMy)
-        best_MLE = self.STMerror/len(self.STMX)
-        old_error = best_MLE
+
+        best_MLE = self.STMerror/STMX.shape[0]
         best_size = STMX.shape[0]
+
+        old_error = best_MLE
         old_size = best_size
+
         slice_size = int(STMX.shape[0]/2)
+        
         while (slice_size >= 50):
             MLE = 0
+
             for n in range(self.n_neighbors, slice_size):
-                pred = self._predict(STMX[-slice_size:-slice_size+n, :], STMy[-slice_size:-slice_size+n], STMX[-slice_size+n, :])
+                pred = self._predict(
+                    STMX[-slice_size:-slice_size+n, :],
+                    STMy[-slice_size:-slice_size+n], # NOTE: multi dim y values possible?
+                    STMX[-slice_size+n, :])
+
                 MLE += math.log(1+abs(pred - STMy[-slice_size+n]))
+
             MLE = MLE/slice_size
+            
             if (MLE < best_MLE):
                 best_MLE = MLE
                 best_size = slice_size
+            
             slice_size = int(slice_size / 2)
         
         if(old_size != best_size):
-            _, ax = plt.subplots()
+            self.adaptions += 1
+            fig, ax = plt.subplots(2,2, sharex=True, sharey=True, num="Adaption #" + str(self.adaptions))
+            
+            
             print("ADAPTING: old size & error: ", old_size, old_error, "new size & error: ", best_size, best_MLE)
+            
             discarded_X = STMX[0:-best_size, :]
-            discarded_y = STMy[0:-best_size]
-            self.STMX = list(STMX[-best_size:, :])
-            self.STMy = list(STMy[-best_size:])
+            discarded_y = STMy[0:-best_size] # NOTE: multi dim y values possible?
+            self.STMX = STMX[-best_size:, :].tolist()
+            self.STMy = STMy[-best_size:].tolist()
             self.STMerror = best_MLE
-            ax.scatter(self.STMX, self.STMy, label="newSTM", s= 13)
-            original_discard_size = discarded_X.size
-            ax.scatter(list(discarded_X), list(discarded_y), label="oldDiscard", s= 10)
+            
+            ax[1][0].scatter(self.STMX, self.STMy, label="STM after adaption", s=100, alpha=.2, color='C1')
+
+            
+            original_discard_size = len(discarded_X)
+            
+            ax[0][0].scatter(discarded_X, discarded_y, label="all discarded", s=100, alpha=.2, color='C2')
+
+
+
             discarded_X, discarded_y = self._cleanDiscarded(discarded_X, discarded_y)
-            ax.scatter(list(discarded_X), list(discarded_y), label="cleanedDiscard", s= 10)
+            
+            ax[0][1].scatter(discarded_X, discarded_y, label="cleaned discarded -> LTM", s=100, alpha=.2, color='C3')
+
             
             if (discarded_X.size):
-                self.LTMX += (list(discarded_X))
-                self.LTMy += (list(discarded_y))
-                print("Added", discarded_X.size, "from", original_discard_size, "to LTM. ")
-                #ax.scatter(self.LTMX, self.LTMy, label="LTM", s= 6)
+                self.LTMX += discarded_X.tolist()
+                self.LTMy += discarded_y.tolist()
+                ax[1][1].scatter(self.LTMX, self.LTMy, label="LTM with new from STM", s=100, alpha=.2, color='C4')
+                
+
+
+                print("Added", len(discarded_X), "of", original_discard_size, "to LTM. ")
             else:
                 print("All discarded Samples are dirty")
-            ax.legend()
-            plt.show()
+            plt.figlegend()
+            plt.tight_layout()
+            plt.show(block=False)
 
     def predict(self, X):
         """ predict
@@ -215,7 +321,7 @@ class SAMKNNREG(RegressorMixin):
             return np.array([self.COMBpredict(x) for x in X])
 
     def fit(self, X, y):
-        if (len(self.STMX) < 10):
+        if (len(self.STMX) < self.n_neighbors):
             self.LTMX = list(X[0:10,:]) 
             self.STMX = list(X[0:10,:]) 
             self.LTMy = list(y[0:10])
@@ -249,18 +355,18 @@ if __name__ == "__main__":
     for i in range(len(data)):
         X += data[i][0]
         y += data[i][1]
-    X = np.array(X)
-    y = np.array(y)
+    X = np.array(X).astype('d')/np.amax(X)
+    y = np.array(y).astype('d')/np.amax(y)
     X = np.reshape(X, (X.shape[0], -1))
-    print(X)
-    print(y)
-    model = SAMKNNREG()
+    # print(X)
+    # print(y)
+    model = SAMKNNRegressor()
     model.fit(X, y)
     #print(model.predict(np.array([[3],[8],[15],[79]])))
     print(len(model.LTMX), len(model.STMX))
     fig, ax = plt.subplots()
-    ax.scatter(X, y, label="original")
-    ax.scatter(model.STMX, model.STMy, label="STM", s= 6)
-    ax.scatter(model.LTMX, model.LTMy, label="LTM", s = 6)
+    ax.scatter(X, y, label="original", s=100, alpha=.1)
+    ax.scatter(model.STMX, model.STMy, label="STM", s=100, alpha=.4)
+    ax.scatter(model.LTMX, model.LTMy, label="LTM", s=100, alpha=.4)
     ax.legend()
     plt.show()
