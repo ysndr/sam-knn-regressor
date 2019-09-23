@@ -191,8 +191,10 @@ class JumpingSineGenerator(Stream):
 
 
 class StairsGenerator(Stream):
-    def __init__(self, random_state=None, granularity=10, abrupt_drift_rate=300, offset=0):
+    def __init__(self, random_state=None, granularity=10., abrupt_drift_rate=300., offset=0., shuffleData=True):
         super().__init__()
+
+        self.shuffleData = shuffleData
 
         self.abrupt_drift_rate = abrupt_drift_rate
         self.granularity = granularity
@@ -251,21 +253,22 @@ class StairsGenerator(Stream):
 
         X = []
         y = []
-        self.cont = 2
+        self.cont = 2.
         for x in range(batch_size):
             if x > batch_size/2 and self.cont == 2:
-                self.cont = 5*np.random.rand()
+                self.cont = 5.*np.random.rand()
             if self._random_state.rand() < 1/self.abrupt_drift_rate:
                 #self.offset += 1
                 pass
             y.append(self.offset + (x*self.cont)/self.granularity + self._random_state.normal(scale=1))
-            X.append(x)
+            X.append(float(x))
         self._x_idx += batch_size
         zipped = list(zip(X, y))
-        shuffle(zipped)
+        if self.shuffleData:
+            shuffle(zipped)
         
 
-        return ([zipped[i][0] for i in range(len(X))], [zipped[i][1] for i in range(len(X))])
+        return ([float(zipped[i][0]) for i in range(len(X))], [float(zipped[i][1]) for i in range(len(X))])
 
 
     def restart(self):
