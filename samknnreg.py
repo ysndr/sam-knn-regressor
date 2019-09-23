@@ -3,6 +3,7 @@ import datagen
 import math
 import sklearn.neighbors as sk
 import matplotlib.pyplot as plt
+import time
 from skmultiflow.core import RegressorMixin
 from pykdtree.kdtree import KDTree
 
@@ -190,12 +191,8 @@ class SAMKNNRegressor(RegressorMixin):
         clean = np.nonzero(dist)
         dist = dist[clean]
         ind = ind[clean]
-
-
         if len(dist) == 0:
             return 0
-
-        
 
         pred = np.sum(y[ind] / dist)
         norm = np.sum(1 / dist)
@@ -254,7 +251,9 @@ class SAMKNNRegressor(RegressorMixin):
         
         if(old_size != best_size):
             self.adaptions += 1
-            fig, ax = plt.subplots(2,2, sharex=True, sharey=True, num="Adaption #" + str(self.adaptions))
+
+            if(len(self.STMX[0]) == 1):
+                fig, ax = plt.subplots(2,2, sharex=True, sharey=True, num="Adaption #" + str(self.adaptions))
             
             
             print("ADAPTING: old size & error: ", old_size, old_error, "new size & error: ", best_size, best_MLE)
@@ -265,33 +264,37 @@ class SAMKNNRegressor(RegressorMixin):
             self.STMy = STMy[-best_size:].tolist()
             self.STMerror = best_MLE
             
-            ax[1][0].scatter(self.STMX, self.STMy, label="STM after adaption", s=100, alpha=.2, color='C1')
+            if(len(self.STMX[0]) == 1):
+                ax[1][0].scatter(self.STMX, self.STMy, label="STM after adaption", s=100, alpha=.2, color='C1')
 
             
             original_discard_size = len(discarded_X)
-            
-            ax[0][0].scatter(discarded_X, discarded_y, label="all discarded", s=100, alpha=.2, color='C2')
+            if(len(self.STMX[0]) == 1):
+                ax[0][0].scatter(discarded_X, discarded_y, label="all discarded", s=100, alpha=.2, color='C2')
 
 
 
             discarded_X, discarded_y = self._cleanDiscarded(discarded_X, discarded_y)
-            
-            ax[0][1].scatter(discarded_X, discarded_y, label="cleaned discarded -> LTM", s=100, alpha=.2, color='C3')
+            if(len(self.STMX[0]) == 1):
+                ax[0][1].scatter(discarded_X, discarded_y, label="cleaned discarded -> LTM", s=100, alpha=.2, color='C3')
 
             
             if (discarded_X.size):
                 self.LTMX += discarded_X.tolist()
                 self.LTMy += discarded_y.tolist()
-                ax[1][1].scatter(self.LTMX, self.LTMy, label="LTM with new from STM", s=100, alpha=.2, color='C4')
+                if(len(self.STMX[0]) == 1):    
+                    ax[1][1].scatter(self.LTMX, self.LTMy, label="LTM with new from STM", s=100, alpha=.2, color='C4')
                 
 
 
                 print("Added", len(discarded_X), "of", original_discard_size, "to LTM. ")
             else:
                 print("All discarded Samples are dirty")
-            plt.figlegend()
-            plt.tight_layout()
-            plt.show(block=False)
+
+            if(len(self.STMX[0]) == 1):
+                plt.figlegend()
+                plt.tight_layout()
+                plt.show(block=False)
 
     def predict(self, X):
         """ predict
@@ -335,10 +338,12 @@ class SAMKNNRegressor(RegressorMixin):
 
     def print_model(self):
         print("Errors:  STM: ", self.STMerror, "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
+        """
         print("LTM:")
         print(self.LTMX)
         print("STM:")
         print(self.STMX)
+        """
 
 if __name__ == "__main__":
     """
@@ -347,7 +352,7 @@ if __name__ == "__main__":
     y = X**2
     X = np.reshape(X, (X.shape[0], -1))
     """
-    generator = datagen.StairsGenerator()
+    generator = datagen.NormalBlopps(dims=3)
     generator.prepare_for_use()
     data = [generator.next_sample(500), generator.next_sample(500), generator.next_sample(500)]
     X = []
@@ -355,18 +360,18 @@ if __name__ == "__main__":
     for i in range(len(data)):
         X += data[i][0]
         y += data[i][1]
-    X = np.array(X).astype('d')/np.amax(X)
-    y = np.array(y).astype('d')/np.amax(y)
+    X = np.array(X).astype('d')#/np.amax(X)
+    y = np.array(y).astype('d')#/np.amax(y)
     X = np.reshape(X, (X.shape[0], -1))
-    # print(X)
-    # print(y)
     model = SAMKNNRegressor()
     model.fit(X, y)
     #print(model.predict(np.array([[3],[8],[15],[79]])))
-    print(len(model.LTMX), len(model.STMX))
-    fig, ax = plt.subplots()
-    ax.scatter(X, y, label="original", s=100, alpha=.1)
-    ax.scatter(model.STMX, model.STMy, label="STM", s=100, alpha=.4)
-    ax.scatter(model.LTMX, model.LTMy, label="LTM", s=100, alpha=.4)
-    ax.legend()
-    plt.show()
+    print("LTM size:", len(model.LTMX), "STM size:", len(model.STMX))
+    if(X.shape[0] == 1):
+        fig, ax = plt.subplots()
+        ax.scatter(X, y, label="original", s=100, alpha=.1)
+        ax.scatter(model.STMX, model.STMy, label="STM", s=100, alpha=.4)
+        ax.scatter(model.LTMX, model.LTMy, label="LTM", s=100, alpha=.4)
+        ax.legend()
+        plt.show()
+    model.print_model()
