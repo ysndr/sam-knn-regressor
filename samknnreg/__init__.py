@@ -1,11 +1,10 @@
 import numpy as np
-import datagen
 import math
 import sklearn.neighbors as sk
 import matplotlib.pyplot as plt
 import time
-from skmultiflow.core import RegressorMixin
 from pykdtree.kdtree import KDTree
+from skmultiflow.core import RegressorMixin
 
 
 #from skmultiflow.utils.utils import *
@@ -249,7 +248,7 @@ class SAMKNNRegressor(RegressorMixin):
         if(old_size != best_size):
             self.adaptions += 1
 
-            if(len(self.STMX[0]) == 1 and self.show_plots):
+            if( (len(self.STMX[0]) == 1 or len(self.STMX[0]) == 2) and self.show_plots):
                 fig, ax = plt.subplots(2,2, sharex=True, sharey=True, num="Adaption #" + str(self.adaptions))
             
             
@@ -263,17 +262,22 @@ class SAMKNNRegressor(RegressorMixin):
             
             if(len(self.STMX[0]) == 1 and self.show_plots):
                 ax[1][0].scatter(self.STMX, self.STMy, label="STM after adaption", s=100, alpha=.2, color='C1')
+            if(len(self.STMX[0]) == 2 and self.show_plots):
+                ax[1][0].scatter(np.array(self.STMX)[:,0] , np.array(self.STMX)[:,1], label="STM after adaption", s=100, alpha=.2, c=self.STMy)
 
             
             original_discard_size = len(discarded_X)
             if(len(self.STMX[0]) == 1 and self.show_plots):
                 ax[0][0].scatter(discarded_X, discarded_y, label="all discarded", s=100, alpha=.2, color='C2')
-
+            if(len(self.STMX[0]) == 2 and self.show_plots):
+                ax[0][0].scatter(np.array(discarded_X)[:,0] , np.array(discarded_X)[:,1], label="all discarded", s=100, alpha=.2, c=discarded_y)
 
 
             discarded_X, discarded_y = self._cleanDiscarded(discarded_X, discarded_y)
             if(len(self.STMX[0]) == 1 and self.show_plots):
                 ax[0][1].scatter(discarded_X, discarded_y, label="cleaned discarded -> LTM", s=100, alpha=.2, color='C3')
+            if(len(self.STMX[0]) == 2 and self.show_plots):
+                ax[0][1].scatter(np.array(discarded_X)[:,0] , np.array(discarded_X)[:,1], label="cleaned discarded", s=100, alpha=.2, c=discarded_y)
 
             
             if (discarded_X.size):
@@ -281,14 +285,14 @@ class SAMKNNRegressor(RegressorMixin):
                 self.LTMy += discarded_y.tolist()
                 if(len(self.STMX[0]) == 1 and self.show_plots):    
                     ax[1][1].scatter(self.LTMX, self.LTMy, label="LTM with new from STM", s=100, alpha=.2, color='C4')
-                
-
+                if(len(self.STMX[0]) == 2 and self.show_plots):
+                    ax[1][1].scatter(np.array(self.LTMX)[:,0] , np.array(self.LTMX)[:,1], label="LTM with new from STM", s=100, alpha=.2, c=self.LTMy)
 
                 print("Added", len(discarded_X), "of", original_discard_size, "to LTM. ")
             else:
                 print("All discarded Samples are dirty")
 
-            if(len(self.STMX[0]) == 1 and self.show_plots):
+            if( (len(self.STMX[0]) == 1 or len(self.STMX[0]) == 2) and self.show_plots):
                 plt.figlegend()
                 plt.tight_layout()
                 plt.show(block=False)
@@ -334,7 +338,7 @@ class SAMKNNRegressor(RegressorMixin):
         pass
 
     def print_model(self):
-        print("Errors:  STM: ", self.STMerror, "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
+        print("Errors:  STM: ", self.STMerror/len(self.STMX), "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
         """
         print("LTM:")
         print(self.LTMX)

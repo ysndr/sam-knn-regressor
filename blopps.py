@@ -1,11 +1,12 @@
 import numpy as np
+import sys
 import matplotlib.pyplot as plt
 
 from samknnreg import SAMKNNRegressor
 from datagen import NormalBlopps 
 
 if __name__ == "__main__":
-    generator = NormalBlopps()
+    generator = NormalBlopps(dims=int(sys.argv[1]) if len(sys.argv)>1 else 1 )
     generator.prepare_for_use()
     data = [generator.next_sample(1500)]
     X = []

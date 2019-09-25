@@ -8,7 +8,7 @@ from sklearn.datasets import make_regression
 from skmultiflow.utils import check_random_state
 
 class NormalBlopps(Stream):
-    def __init__(self, random_state=None, var=1, dims=1, cont=0.01, abrupt_drift_rate=100):
+    def __init__(self, random_state=None, var=1, dims=1, cont=0, abrupt_drift_rate=400):
         super().__init__()
 
         self.abrupt_drift_rate = abrupt_drift_rate
@@ -70,18 +70,18 @@ class NormalBlopps(Stream):
 
         X = []
         y = []
-        dimfaks = [np.random.rand() * 5 for _ in range(self.dims)]
-        dimpots = [int(np.random.rand() * 4) for _ in range(self.dims)]
-        dimvars = [np.random.rand() * self.var for _ in range(self.dims)]
-        dimmeans = [np.random.rand() * 100 for _ in range(self.dims)]
 
-        for _ in range(batch_size):
+        for count in range(batch_size):
             #check for abrupt drift
-            if self._random_state.rand() < 1/self.abrupt_drift_rate:
-                dimfaks = [np.random.rand() * 5 for _ in range(self.dims)]
-                dimpots = [int(np.random.rand() * 4) for _ in range(self.dims)]
+            if count % self.abrupt_drift_rate == 0:
+                dimfaks = [round(np.random.rand() * 4, 1) for _ in range(self.dims)]
+                dimpots = [1 + round(np.random.rand() * 2) for _ in range(self.dims)]
                 dimvars = [np.random.rand() * self.var for _ in range(self.dims)]
-                dimmeans = [np.random.rand() * 100 for _ in range(self.dims)]
+                dimmeans = [5 + np.random.rand() * 10 for _ in range(self.dims)]
+                print("Random Polynomconcept: ", end="")
+                for i in range(self.dims):
+                    print(dimfaks[i]," * x", i+1, "^", dimpots[i], " + ",end="", sep="")
+                print()
 
             value = 0
             sample = []
