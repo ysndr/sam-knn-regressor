@@ -352,7 +352,7 @@ if __name__ == "__main__":
     y = X**2
     X = np.reshape(X, (X.shape[0], -1))
     """
-    generator = datagen.NormalBlopps(dims=3)
+    generator = datagen.NormalBlopps(dims=1, abrupt_drift_rate=200)
     generator.prepare_for_use()
     data = [generator.next_sample(500), generator.next_sample(500), generator.next_sample(500)]
     X = []
