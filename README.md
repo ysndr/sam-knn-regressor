@@ -26,7 +26,7 @@ To keep the LTM of size *m* at a reasonable size a kmeans++ clustering is conduc
 
 To make use of this concept in a regressor we had to make some adjustments.
 
-First we had to find a way to track the accummulated error of each memory. While in the classifier this is quite easy, we needed to accommodate to the continual nature in a regressor. We found that using *summed logistic error* is a good fit thatdoes not allow outliers hijack the overall error.
+First we had to find a way to track the accummulated error of each memory. While in the classifier this is quite easy, we needed to accommodate to the continual nature in a regressor. We found that using *summed logistic error* is a good fit that does not allow outliers hijack the overall error.
 
 Cleaning discarded items was another issue. We had to find another way to tell if elements comply with the STM.
 We look at the next *k* neighbours of each element *e* in the (cleaned) STM. We use these to determine a maximum distance.
