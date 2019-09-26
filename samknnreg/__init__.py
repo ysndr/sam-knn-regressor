@@ -7,7 +7,6 @@ import time
 from pykdtree.kdtree import KDTree
 from skmultiflow.core import RegressorMixin
 
-matplotlib.use("TkAgg")
 #from skmultiflow.utils.utils import *
 
 class SAMKNNRegressor(RegressorMixin):
