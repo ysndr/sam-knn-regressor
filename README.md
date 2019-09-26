@@ -37,19 +37,24 @@ The same technique is applied to clean the LTM instead of the kmeans++ in the or
 
 To form a prediction inverse distance weighting[^idw] is used.
 
-
-### Examples
+### Findings and Examples
 
 - `./dataset.py`
   A testsuite from the `scikit-multiflow` project. Uses 10 years of weather data[^weather] (2006 - 2016, Humidity, Wind, Temperature, Air Pressure,...). It tries to find the real temperature given the average humidity, air pressure and wind speed. Our tests showed that using our algorithm results in marginally smaller summed squared errors than the Hoeffding Tree implementations that come with scikit-multiflow.
   ![Results Temperature regression](doc/sam-temp.png)
   Noticably, SAM-kNN has almost always smaller spikes than its contenders.
+  
 - `./stairs.py`
-  A simulated test that does three sweeps over the range [0..1]. Each time the lower half is constructed using ste same linear function (and some gaussian noise). The second half is computed using a random slope.
-  ![First Adaption](doc/Adaption_1.png)
-  ![Second Adaption](doc/Adaption_2.png)
-  ![Third Adaption](doc/Adaption_3.png)
-  ![Final Set](doc/Final.png)
+  A simulated test that does three sweeps over the range [0..1]. Each time the lower half is constructed using the same linear function (with some gaussian noise). The uper half is computed using a random slope.
+  
+  |                        Figures                        | Explanation             |
+  | :---------------------------------------------------: | :---------------------- |
+  | ![First Adaption](doc/Stairs_Example/Adaption_1.png)  | The first adaption takes place when the second random slope (new concept) becomes present enough to justify dropping 496 elements from STM. It also shows the effect of some data in the STM that act like an anchor for some of the dropped data in the upper right. |
+  | ![Second Adaption](doc/Stairs_Example/Adaption_2.png) | Likewise the second figure shows the second concept beeing fully adapted to. Also the LTM got cleaned intermediately as well. |
+  | ![Third Adaption](doc/Stairs_Example/Adaption_3.png)  | Again, the third adaption happens after the introduction of a third concept |
+  |      ![Final Set](doc/Stairs_Example/Final.png)       | The fourth figure shows the distribution of all points other the whole input as well as the final state of LTM and STM. It proves that the model successfully kept the stable concept of the lower half in the LTM. Also the STM is perfectly adapted to the third concept on the upper half.<br/>**Its still debatable if the LTM should still hold at least the previous concept in part.** |
+  #### Logs
+  
   ```
   ADAPTING: old size & error:  566 0.031908149280463025 new size & error:  70 0.02675182593747353
   Added 331 of 496 to LTM. 
@@ -58,13 +63,16 @@ To form a prediction inverse distance weighting[^idw] is used.
   ADAPTING: old size & error:  402 0.015025775010344506 new size & error:  50 0.014857742991631865
   Added 173 of 352 to LTM. 
   LTM size: 357 STM size: 497
-  Errors:  STM:  3.1072852475465735   LTM:  100.69982470840895   COMB:  36.423858618567415
+  Errors:  STM:  3.1072852475465735   LTM:  100.69982470840895   COMB:  36.423858618567415 
   ```
-  It's clearly visible here how the algorithm works. The first adaption takes place when the second random slope (new concept) becomes present enough to justify dropping 496 elements from STM. It also shows the effect of some data in the STM that act like an anchor for some of the dropped data in the upper right.
-  Likewise the second figure shows the second concept beeing fully adapted to. Also the LTM got cleaned intermediately as well.
-  Finally the third shows the introduction of a third concept.
-  The fourth figure shows the distribution of all points other the whole input as well as the final state of LTM and STM. It proves that the model successfully kept the stable concept of the lower half in the LTM. Also the STM is perfectly adapted to the third concept on the upper half.
-  Its still debatable if the LTM should still hold at least the previous concept in part.
+
+- `./blopps.py`
+
+  
+
+  
+
+
 
 -----
 
