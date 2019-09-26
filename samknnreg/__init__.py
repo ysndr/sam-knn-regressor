@@ -11,7 +11,7 @@ from skmultiflow.core import RegressorMixin
 
 class SAMKNNRegressor(RegressorMixin):
 
-    def __init__(self, n_neighbors=5, max_LTM_size=5000, leaf_size=30, nominal_attributes=None, show_plots=False):
+    def __init__(self, n_neighbors=5, max_LTM_size=5000, leaf_size=30, LTM_clean_scaler=0.5, show_plots=False):
         """
         test text
         """
@@ -20,6 +20,7 @@ class SAMKNNRegressor(RegressorMixin):
         self.STMX, self.STMy, self.LTMX, self.LTMy = ([], [], [], [])
         self.STMerror, self.LTMerror, self.COMBerror = (0, 0, 0)
         self.leaf_size = leaf_size
+        self.LTM_clean_scaler = LTM_clean_scaler
         self.show_plots = show_plots
         self.adaptions = 0
             
@@ -161,7 +162,7 @@ class SAMKNNRegressor(RegressorMixin):
 
 
         #dist = np.where(dist < 1, 1, dist) ^
-        qstest = .5 * self._clean_metric(LTMy[ind] - y, dist, dist_max)
+        qstest = self.LTM_clean_scaler * self._clean_metric(LTMy[ind] - y, dist, dist_max)
         dirty = ind[qstest > w_diff_max]
 
 
