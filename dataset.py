@@ -6,8 +6,6 @@
 #pylinignore
 #%matplotlib osx
 
-
-
 #%%
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
@@ -23,12 +21,13 @@ import matplotlib.pyplot as plt
 
 
 #%%
+print("Reading dataset...")
 df = pd.read_csv(
     "weatherHistory.csv",
     parse_dates={"datetime": ["Formatted Date"]},
     date_parser=pd.to_datetime,
     index_col="datetime")
-
+print("done!")
 #%%
 
 df.index = pd.to_datetime(df.index, utc=True)
@@ -61,7 +60,7 @@ tdf.drop(columns=["Pressure (millibars)", "Wind Bearing (degrees)"]).resample("W
 tdf.info()
 
 X = tdf[["Pressure (millibars)", "Humidity", "Wind Speed (km/h)"]].resample("6H").mean()
-y = tdf[["Temperature (C)"]].resample("6H").mean()
+y = tdf[["Temperature (C)"]].resample("6H").max()
 
 X.plot(subplots=True, layout=(1,3))
 y.plot()
@@ -79,7 +78,7 @@ ds.prepare_for_use()
 
 
 evaluator = EvaluatePrequential(show_plot=True,
-                                n_wait=200,
+                                n_wait=730,
                                 batch_size=28,
                                 metrics=[
                                     'mean_square_error',

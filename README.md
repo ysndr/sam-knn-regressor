@@ -18,7 +18,9 @@ To help with adapting the STM of size *n* its performance is assessed on the *n/
 
 Instead of just dropping these items, those that still comply with the STM are moved into the LTM.
 
-To keep the LTM of size *m* at a reasonable size a kmeans++ clustering is conducted on it using *m/2* clusters
+To keep the LTM of size *m* at a reasonable size a kmeans++ clustering is conducted on it using *m/2* clusters as the ltm reaches a maximum size.
+
+To decide which memory actually gets used to make predictions, the current performance of each memory ois tracked everytime new training samples are presented. The best performing memory is subsequently used to make upcoming predictions (unless new trainig data gives another memory the edge).
 
 > More detailed steps can be found in the linked paper[^paper]
 
@@ -40,33 +42,39 @@ To form a prediction inverse distance weighting[^idw] is used.
 ### Findings and Examples
 
 - `./dataset.py`
-  A testsuite from the `scikit-multiflow` project. Uses 10 years of weather data[^weather] (2006 - 2016, Humidity, Wind, Temperature, Air Pressure,...). It tries to find the real temperature given the average humidity, air pressure and wind speed. Our tests showed that using our algorithm results in marginally smaller summed squared errors than the Hoeffding Tree implementations that come with scikit-multiflow.
+  A testsuite from the `scikit-multiflow` project. Uses 10 years of weather data[^weather] (2006 - 2016, Humidity, Wind, Temperature, Air Pressure,...). See the data plotted [here](doc/temp-overview.png), as well as the [value being predicted](doc/temp-graph.png) and [the parameters](doc/temp-parameters.png) It tries to find the real temperature given the average humidity, air pressure and wind speed. Our tests showed that using our algorithm results nearly 25 per cent smaller summed squared errors than the Hoeffding Tree implementations that come with scikit-multiflow.
   ![Results Temperature regression](doc/sam-temp.png)
-  Noticably, SAM-kNN has almost always smaller error spikes than its contenders.
+  Noticably, SAM-kNN has almost always smaller error spikes than its contenders if at all.
   
 - `./stairs.py`
   A simulated test that does three sweeps over the range [0..1]. Each time the lower half is constructed using the same linear function (with some gaussian noise). The uper half is computed using a random slope.
   
-  |                        Figures                        | Explanation             |
-  | :---------------------------------------------------: | :---------------------- |
+  |                        Figures                        | Explanation                                                  |
+  | :---------------------------------------------------: | :----------------------------------------------------------- |
   | ![First Adaption](doc/Stairs_Example/Adaption_1.png)  | The first adaption takes place when the second random slope (new concept) becomes present enough to justify dropping 496 elements from STM. It also shows the effect of some data in the STM that act like an anchor for some of the dropped data in the upper right. |
   | ![Second Adaption](doc/Stairs_Example/Adaption_2.png) | Likewise the second figure shows the second concept beeing fully adapted to. Also the LTM got cleaned intermediately as well. |
   | ![Third Adaption](doc/Stairs_Example/Adaption_3.png)  | Again, the third adaption happens after the introduction of a third concept |
-  |      ![Final Set](doc/Stairs_Example/Final.png)       | The fourth figure shows the distribution of all points other the whole input as well as the final state of LTM and STM. It proves that the model successfully kept the stable concept of the lower half in the LTM. Also the STM is perfectly adapted to the third concept, which contradicts the other concepts in the upper half. 
+  |      ![Final Set](doc/Stairs_Example/Final.png)       | The fourth figure shows the distribution of all points other the whole input as well as the final state of LTM and STM. It proves that the model successfully kept the stable concept of the lower half in the LTM. Also the STM is perfectly adapted to the third concept, which contradicts the other concepts in the upper half. |
+    
   
   From our Log we can also see, that before Adaption the combined memory has the smallest error, and then after adaption the STM is again the most accurate. This makes sense, since the STM is smaller and with the introduction of a new concept its error increases faster, and the combined memory is used to make predictions. After adaption the STM is again the one with the smallest error and used again to make predictions.
-  <br/>**Its still debatable if the LTM should still hold at least the previous concept in part.** |
 
-  - `./blopps.py`
+  **Its still debatable if the LTM should still hold at least the previous concept in part.**
+  
+- `./blopps.py [n dimensions]`
   Generates arbitrarily dimensioned samples, with each feature following an indepedent normal distribution with randomized mean and variance. Then the features get passed into a randomized polynom to compute a corresponding target value. After a specified number of samples the distributions and the polynom are randomized again, to simulate an abrupt drift with completely new concept and feature distributions.
 
-  ![Final Set](doc/NiceLinearCover/final.png) Here all polynoms happened to be linear. One dimensional input samples were generated. You can see clearly that the LTM covers the original samples in a way that they don't contradict each other and the STM covers only the newest concept. Looking at the Adaptions [Adaption 1](doc/NiceLinearCover/Adaption_1.png), [Adaption 2](doc/NiceLinearCover/Adaption_2.png) and [Adaption 3](doc/NiceLinearCover/Adaption_3.png) one can see that the LTM used to cover more original samples, but when the STM contradicted the LTM the contradicting samples were succesfully cleaned from the LTM.
+  ![Final Set](doc/NiceLinearCover/final.png)
 
-  ![Final Set](doc/Nice_LTM_clean_Example/final.png) Another Example which demonstrates the succesfull cleaning of the LTM. The newest concept, represented by the STM, contradicts parts of old concepts which are still remembered in the LTM. The contradicting samples are cleaned, so that we end up with non contradicting memories.
+  Here all polynoms happened to be linear. One dimensional input samples were generated. You can see clearly that the LTM covers the original samples in a way that they don't contradict each other and the STM covers only the newest concept. Looking at the Adaptions [Adaption 1](doc/NiceLinearCover/Adaption_1.png), [Adaption 2](doc/NiceLinearCover/Adaption_2.png) and [Adaption 3](doc/NiceLinearCover/Adaption_3.png) one can see that the LTM used to cover more original samples, but when the STM contradicted the LTM the contradicting samples were succesfully cleaned from the LTM.
+
+  ![Final Set](doc/Nice_LTM_clean_Example/final.png) 
+  
+  Another Example which demonstrates the succesfull cleaning of the LTM. The newest concept, represented by the STM, contradicts parts of old concepts which are still remembered in the LTM. The contradicting samples are cleaned, so that we end up with non contradicting memories.
 
 
   #### Logs
-  
+
   ```
   ADAPTING: old size & error:  566 0.031908149280463025 new size & error:  70 0.02675182593747353
   Added 331 of 496 to LTM. 
@@ -94,17 +102,6 @@ To form a prediction inverse distance weighting[^idw] is used.
   LTM size: 341 STM size: 439
   Errors:  Complete Model: [0.01731821] STM:  1.650210669830953e-05   LTM:  0.03618848479111652   COMB:  0.017634074959812642
   ```
-
-
-
-
-
-
-  
-
-  
-
-
 
 -----
 
