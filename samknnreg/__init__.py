@@ -337,7 +337,7 @@ class SAMKNNRegressor(RegressorMixin):
         mem_list = [self.STMerror, self.LTMerror, self.COMBerror]
         best_mem_ind = np.argmin(mem_list)
         if(best_mem_ind != self.best_mem):
-            print("Best Memory: STM" if best_mem_ind == 0 else ("Best Memory: LTM" if best_mem_ind == 1 else "Best Memory: COMB"))
+            print("New Best Memory: STM" if best_mem_ind == 0 else ("New Best Memory: LTM" if best_mem_ind == 1 else "New Best Memory: COMB"))
             self.best_mem = best_mem_ind
         if (best_mem_ind == 0): 
             return np.array([self.STMpredict(x) for x in X])
@@ -361,7 +361,7 @@ class SAMKNNRegressor(RegressorMixin):
         pass
 
     def print_model(self):
-        print("Errors:  Complete Model:", self.modelError, "STM: ", self.STMerror/len(self.STMX), "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
+        print("Mean Absolute Errors:  Complete Model:", self.modelError, "STM: ", self.STMerror/len(self.STMX), "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
         """
         print("LTM:")
         print(self.LTMX)

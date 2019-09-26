@@ -52,7 +52,19 @@ To form a prediction inverse distance weighting[^idw] is used.
   | ![First Adaption](doc/Stairs_Example/Adaption_1.png)  | The first adaption takes place when the second random slope (new concept) becomes present enough to justify dropping 496 elements from STM. It also shows the effect of some data in the STM that act like an anchor for some of the dropped data in the upper right. |
   | ![Second Adaption](doc/Stairs_Example/Adaption_2.png) | Likewise the second figure shows the second concept beeing fully adapted to. Also the LTM got cleaned intermediately as well. |
   | ![Third Adaption](doc/Stairs_Example/Adaption_3.png)  | Again, the third adaption happens after the introduction of a third concept |
-  |      ![Final Set](doc/Stairs_Example/Final.png)       | The fourth figure shows the distribution of all points other the whole input as well as the final state of LTM and STM. It proves that the model successfully kept the stable concept of the lower half in the LTM. Also the STM is perfectly adapted to the third concept on the upper half.<br/>**Its still debatable if the LTM should still hold at least the previous concept in part.** |
+  |      ![Final Set](doc/Stairs_Example/Final.png)       | The fourth figure shows the distribution of all points other the whole input as well as the final state of LTM and STM. It proves that the model successfully kept the stable concept of the lower half in the LTM. Also the STM is perfectly adapted to the third concept, which contradicts the other concepts in the upper half. 
+  
+  From our Log we can also see, that before Adaption the combined memory has the smallest error, and then after adaption the STM is again the most accurate. This makes sense, since the STM is smaller and with the introduction of a new concept its error increases faster, and the combined memory is used to make predictions. After adaption the STM is again the one with the smallest error and used again to make predictions.
+  <br/>**Its still debatable if the LTM should still hold at least the previous concept in part.** |
+
+  - `./blopps.py`
+  Generates arbitrarily dimensioned samples, with each feature following an indepedent normal distribution with randomized mean and variance. Then the features get passed into a randomized polynom to compute a corresponding target value. After a specified number of samples the distributions and the polynom are randomized again, to simulate an abrupt drift with completely new concept and feature distributions.
+
+  ![Final Set](doc/NiceLinearCover/final.png) Here all polynoms happened to be linear. One dimensional input samples were generated. You can see clearly that the LTM covers the original samples in a way that they don't contradict each other and the STM covers only the newest concept. Looking at the Adaptions [Adaption 1](doc/NiceLinearCover/Adaption_1.png), [Adaption 2](doc/NiceLinearCover/Adaption_2.png) and [Adaption 3](doc/NiceLinearCover/Adaption_3.png) one can see that the LTM used to cover more original samples, but when the STM contradicted the LTM the contradicting samples were succesfully cleaned from the LTM.
+
+  ![Final Set](doc/Nice_LTM_clean_Example/final.png) Another Example which demonstrates the succesfull cleaning of the LTM. The newest concept, represented by the STM, contradicts parts of old concepts which are still remembered in the LTM. The contradicting samples are cleaned, so that we end up with non contradicting memories.
+
+
   #### Logs
   
   ```
@@ -66,7 +78,27 @@ To form a prediction inverse distance weighting[^idw] is used.
   Errors:  STM:  3.1072852475465735   LTM:  100.69982470840895   COMB:  36.423858618567415 
   ```
 
-- `./blopps.py`
+  ```
+  Best Memory: COMB
+  ADAPTING: old size & error:  567 0.012433790695194631 new size & error:  70 0.012336326312762044
+  Added 248 of 497 to LTM. 
+  Best Memory: STM
+  ADAPTING: old size & error:  127 0.008743407322529801 new size & error:  63 0.00813022065375674
+  Added 64 of 64 to LTM. 
+  Best Memory: COMB
+  ADAPTING: old size & error:  501 0.03225870387533818 new size & error:  62 0.02348357538024763
+  Added 250 of 439 to LTM. 
+  Best Memory: STM
+  ADAPTING: old size & error:  121 0.014561025620511247 new size & error:  60 0.01447358256443726
+  Added 60 of 61 to LTM. 
+  LTM size: 341 STM size: 439
+  Errors:  Complete Model: [0.01731821] STM:  1.650210669830953e-05   LTM:  0.03618848479111652   COMB:  0.017634074959812642
+  ```
+
+
+
+
+
 
   
 
