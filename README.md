@@ -1,4 +1,8 @@
 # SAM-kNN Regressor
+Augustin Harter (University of Bielefeld) [aharter@techfak.uni-bielefeld.de](mailto:aharter@techfak.uni-bielefeld.de)
+
+Yannik Sander (University of Bielefeld) [ysander@techfak.uni-bielefeld.de](mailto:ysander@techfak.uni-bielefeld.de)
+
 *Based on Self Adapting Memory (SAM) kNN classifier developed at University of Bielefeld (Paper[^paper])*
 
 -----
@@ -55,7 +59,7 @@ To form a prediction inverse distance weighting[^idw] is used.
   | ![Second Adaption](doc/Stairs_Example/Adaption_2.png) | Likewise the second figure shows the second concept beeing fully adapted to. Also the LTM got cleaned intermediately as well. |
   | ![Third Adaption](doc/Stairs_Example/Adaption_3.png)  | Again, the third adaption happens after the introduction of a third concept |
   |      ![Final Set](doc/Stairs_Example/Final.png)       | The fourth figure shows the distribution of all points other the whole input as well as the final state of LTM and STM. It proves that the model successfully kept the stable concept of the lower half in the LTM. Also the STM is perfectly adapted to the third concept, which contradicts the other concepts in the upper half. |
-    
+  
   
   From our Log we can also see, that before Adaption the combined memory has the smallest error, and then after adaption the STM is again the most accurate. This makes sense, since the STM is smaller and with the introduction of a new concept its error increases faster, and the combined memory is used to make predictions. After adaption the STM is again the one with the smallest error and used again to make predictions.
 
