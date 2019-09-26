@@ -1,28 +1,30 @@
 import numpy as np
 import math
 import sklearn.neighbors as sk
+import matplotlib
 import matplotlib.pyplot as plt
 import time
 from pykdtree.kdtree import KDTree
 from skmultiflow.core import RegressorMixin
 
-
+matplotlib.use("TkAgg")
 #from skmultiflow.utils.utils import *
 
 class SAMKNNRegressor(RegressorMixin):
 
-    def __init__(self, n_neighbors=5, max_LTM_size=5000, leaf_size=30, LTM_clean_scaler=0.5, show_plots=False):
+    def __init__(self, n_neighbors=5, max_LTM_size=5000, leaf_size=30, LTM_clean_strictness=0.5, show_plots=False):
         """
         test text
         """
         self.n_neighbors = n_neighbors # k
         self.max_LTM_size = max_LTM_size # LTM size 
         self.STMX, self.STMy, self.LTMX, self.LTMy = ([], [], [], [])
-        self.STMerror, self.LTMerror, self.COMBerror = (0, 0, 0)
+        self.STMerror, self.LTMerror, self.COMBerror, self.modelError, self.sampleCount = (0, 0, 0, 0, 0)
         self.leaf_size = leaf_size
-        self.LTM_clean_scaler = LTM_clean_scaler
+        self.LTM_clean_strictness = LTM_clean_strictness
         self.show_plots = show_plots
         self.adaptions = 0
+        self.best_mem = -1
             
         #self.window = InstanceWindow(max_size=max_window_size, dtype=float)
 
@@ -56,7 +58,7 @@ class SAMKNNRegressor(RegressorMixin):
     def _partial_fit(self, x, y):
         self.STMX.append(x)
         self.STMy.append(y)
-    
+        self.sampleCount += 1
 
         # build up initial LTM
         if len(self.LTMX) < self.n_neighbors:
@@ -162,7 +164,7 @@ class SAMKNNRegressor(RegressorMixin):
 
 
         #dist = np.where(dist < 1, 1, dist) ^
-        qstest = self.LTM_clean_scaler * self._clean_metric(LTMy[ind] - y, dist, dist_max)
+        qstest = self.LTM_clean_strictness * self._clean_metric(LTMy[ind] - y, dist, dist_max)
         dirty = ind[qstest > w_diff_max]
 
 
@@ -179,7 +181,7 @@ class SAMKNNRegressor(RegressorMixin):
         X = np.array(X)
         y = np.array(y)
 
-        tree = KDTree(X) #, self.leaf_size, metric='euclidean')
+        tree = KDTree(X, X.shape[1]) #, self.leaf_size, metric='euclidean')
         dist, ind = tree.query(np.array([x]), k=self.n_neighbors)
 
         dist = dist[0]
@@ -209,17 +211,28 @@ class SAMKNNRegressor(RegressorMixin):
         return self._predict(self.STMX + self.LTMX, self.STMy + self.LTMy, x)
 
     def _evaluateMemories(self, x, y):
-
+        """
+        Old summed Log Error:
         self.STMerror += math.log(1+abs(self.STMpredict(x)-y))
         self.LTMerror += math.log(1+abs(self.LTMpredict(x)-y))
         self.COMBerror += math.log(1+abs(self.COMBpredict(x)-y))
         #print("Errors:  STM: ", self.STMerror, "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
+        """
+
+        #absolute Mean Error Calculation
+        self.modelError = ( (self.sampleCount-1) * self.modelError + abs(self.predict([x])-y) ) / self.sampleCount
+        STMsize = len(self.STMX)
+        self.STMerror = ((STMsize-1)*self.STMerror + abs(self.STMpredict(x)-y)) / STMsize
+        LTMsize = len(self.LTMX)
+        self.LTMerror = ((LTMsize-1)*self.LTMerror + abs(self.LTMpredict(x)-y)) / LTMsize
+        size = STMsize + LTMsize
+        self.COMBerror = ((size-1)*self.COMBerror + abs(self.COMBpredict(x)-y)) / size
 
     def _adaptSTM(self):
         STMX = np.array(self.STMX)
         STMy = np.array(self.STMy)
 
-        best_MLE = self.STMerror/STMX.shape[0]
+        best_MLE = self.STMerror
         best_size = STMX.shape[0]
 
         old_error = best_MLE
@@ -236,7 +249,7 @@ class SAMKNNRegressor(RegressorMixin):
                     STMy[-slice_size:-slice_size+n], # NOTE: multi dim y values possible?
                     STMX[-slice_size+n, :])
 
-                MLE += math.log(1+abs(pred - STMy[-slice_size+n]))
+                MLE += abs(pred - STMy[-slice_size+n])
 
             MLE = MLE/slice_size
             
@@ -261,35 +274,40 @@ class SAMKNNRegressor(RegressorMixin):
             self.STMy = STMy[-best_size:].tolist()
             self.STMerror = best_MLE
             
+
+            # For Printing and visualizing the Adaptions:
             if(len(self.STMX[0]) == 1 and self.show_plots):
                 ax[1][0].scatter(self.STMX, self.STMy, label="STM after adaption", s=100, alpha=.2, color='C1')
-            if(len(self.STMX[0]) == 2 and self.show_plots):
-                ax[1][0].scatter(np.array(self.STMX)[:,0] , np.array(self.STMX)[:,1], label="STM after adaption", s=100, alpha=.2, c=self.STMy)
+            elif(len(self.STMX[0]) == 2 and self.show_plots):
+                ax[1][0].scatter(list(np.array(self.STMX)[:,0]) , list(np.array(self.STMX)[:,1]), label="STM after adaption", s=100, alpha=.5, c=self.STMy)
 
             
             original_discard_size = len(discarded_X)
+            # For Printing and visualizing the Adaptions:
             if(len(self.STMX[0]) == 1 and self.show_plots):
                 ax[0][0].scatter(discarded_X, discarded_y, label="all discarded", s=100, alpha=.2, color='C2')
-            if(len(self.STMX[0]) == 2 and self.show_plots):
-                ax[0][0].scatter(np.array(discarded_X)[:,0] , np.array(discarded_X)[:,1], label="all discarded", s=100, alpha=.2, c=discarded_y)
+            elif(len(self.STMX[0]) == 2 and self.show_plots):
+                ax[0][0].scatter(list(np.array(discarded_X)[:,0]) , list(np.array(discarded_X)[:,1]), label="all discarded", s=100, alpha=.5, marker="x", c=discarded_y)
 
-
+            #cleaning of the Discarded Set:
             discarded_X, discarded_y = self._cleanDiscarded(discarded_X, discarded_y)
+
+            # For Printing and visualizing the Adaptions:
             if(len(self.STMX[0]) == 1 and self.show_plots):
                 ax[0][1].scatter(discarded_X, discarded_y, label="cleaned discarded -> LTM", s=100, alpha=.2, color='C3')
-            if(len(self.STMX[0]) == 2 and self.show_plots):
-                ax[0][1].scatter(np.array(discarded_X)[:,0] , np.array(discarded_X)[:,1], label="cleaned discarded", s=100, alpha=.2, c=discarded_y)
+            elif(len(self.STMX[0]) == 2 and self.show_plots):
+                ax[0][1].scatter(list(np.array(discarded_X)[:,0]) , list(np.array(discarded_X)[:,1]), label="cleaned discarded", s=100, alpha=.5, marker="+", c=discarded_y)
 
-            
+        
             if (discarded_X.size):
                 self.LTMX += discarded_X.tolist()
                 self.LTMy += discarded_y.tolist()
+                print("Added", len(discarded_X), "of", original_discard_size, "to LTM. ")
+                # For Printing and visualizing the Adaptions:
                 if(len(self.STMX[0]) == 1 and self.show_plots):    
                     ax[1][1].scatter(self.LTMX, self.LTMy, label="LTM with new from STM", s=100, alpha=.2, color='C4')
-                if(len(self.STMX[0]) == 2 and self.show_plots):
-                    ax[1][1].scatter(np.array(self.LTMX)[:,0] , np.array(self.LTMX)[:,1], label="LTM with new from STM", s=100, alpha=.2, c=self.LTMy)
-
-                print("Added", len(discarded_X), "of", original_discard_size, "to LTM. ")
+                elif(len(self.STMX[0]) == 2 and self.show_plots):
+                    ax[1][1].scatter(list(np.array(self.LTMX)[:,0]) , list(np.array(self.LTMX)[:,1]), label="LTM with new from STM", s=100, alpha=.5, marker="^", c=self.LTMy)
             else:
                 print("All discarded Samples are dirty")
 
@@ -318,6 +336,9 @@ class SAMKNNRegressor(RegressorMixin):
         
         mem_list = [self.STMerror, self.LTMerror, self.COMBerror]
         best_mem_ind = np.argmin(mem_list)
+        if(best_mem_ind != self.best_mem):
+            print("Best Memory: STM" if best_mem_ind == 0 else ("Best Memory: LTM" if best_mem_ind == 1 else "Best Memory: COMB"))
+            self.best_mem = best_mem_ind
         if (best_mem_ind == 0): 
             return np.array([self.STMpredict(x) for x in X])
         elif (best_mem_ind == 1): 
@@ -331,6 +352,7 @@ class SAMKNNRegressor(RegressorMixin):
             self.STMX = list(X[0:10,:]) 
             self.LTMy = list(y[0:10])
             self.STMy = list(y[0:10])
+            self.sampleCount = 10
             self.partial_fit(X[10:,:], y[10:])
         else:
             self.partial_fit(X, y)
@@ -339,7 +361,7 @@ class SAMKNNRegressor(RegressorMixin):
         pass
 
     def print_model(self):
-        print("Errors:  STM: ", self.STMerror/len(self.STMX), "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
+        print("Errors:  Complete Model:", self.modelError, "STM: ", self.STMerror/len(self.STMX), "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
         """
         print("LTM:")
         print(self.LTMX)

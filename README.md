@@ -26,7 +26,7 @@ To keep the LTM of size *m* at a reasonable size a kmeans++ clustering is conduc
 
 To make use of this concept in a regressor we had to make some adjustments.
 
-First we had to find a way to track the accummulated error of each memory. While in the classifier this is quite easy, we needed to accommodate to the continual nature in a regressor. We found that using *summed logistic error* is a good fit that does not allow outliers hijack the overall error.
+First we had to find a way to track the accummulated error of each memory. While in the classifier this is quite easy, we needed to accommodate to the continual nature in a regressor. We are using the Mean Absolute Error. This makes it possible to compare memories with diffrent sizes.
 
 Cleaning discarded items was another issue. We had to find another way to tell if elements comply with the STM.
 We look at the next *k* neighbours of each element *e* in the (cleaned) STM. We use these to determine a maximum distance.
@@ -42,7 +42,7 @@ To form a prediction inverse distance weighting[^idw] is used.
 - `./dataset.py`
   A testsuite from the `scikit-multiflow` project. Uses 10 years of weather data[^weather] (2006 - 2016, Humidity, Wind, Temperature, Air Pressure,...). It tries to find the real temperature given the average humidity, air pressure and wind speed. Our tests showed that using our algorithm results in marginally smaller summed squared errors than the Hoeffding Tree implementations that come with scikit-multiflow.
   ![Results Temperature regression](doc/sam-temp.png)
-  Noticably, SAM-kNN has almost always smaller spikes than its contenders.
+  Noticably, SAM-kNN has almost always smaller error spikes than its contenders.
   
 - `./stairs.py`
   A simulated test that does three sweeps over the range [0..1]. Each time the lower half is constructed using the same linear function (with some gaussian noise). The uper half is computed using a random slope.
