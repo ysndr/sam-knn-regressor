@@ -1,7 +1,9 @@
 # SAM-kNN Regressor
-Augustin Harter (University of Bielefeld) [aharter@techfak.uni-bielefeld.de](mailto:aharter@techfak.uni-bielefeld.de)
 
-Yannik Sander (University of Bielefeld) [ysander@techfak.uni-bielefeld.de](mailto:ysander@techfak.uni-bielefeld.de)
+KNN based regressor designed to tackle heterogenous concept drift by using a biology inspired short-/long-term memory model. By: 
+
+- Augustin Harter (University of Bielefeld) [aharter@techfak.uni-bielefeld.de](mailto:aharter@techfak.uni-bielefeld.de)
+- Yannik Sander (University of Bielefeld) [ysander@techfak.uni-bielefeld.de](mailto:ysander@techfak.uni-bielefeld.de)
 
 *Based on Self Adapting Memory (SAM) kNN classifier developed at University of Bielefeld (Paper[^paper])*
 
