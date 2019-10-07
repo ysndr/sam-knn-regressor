@@ -111,7 +111,7 @@ setup(
     #
     #   py_modules=["my_module"],
     #
-    packages=find_packages(exclude=['contrib', 'docs', 'tests']),  # Required
+    packages=find_packages(),  # Required
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
@@ -119,6 +119,13 @@ setup(
     # do not support Python 2, you can simplify this to '>=3.5' or similar, see
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
     python_requires='>=3',
+
+    install_requires = [
+        'numpy',
+        'sklearn',
+        'matplotlib',
+        'pykdtree'    
+    ],
 
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
@@ -136,10 +143,10 @@ setup(
     #
     # Similar to `install_requires` above, these must be valid existing
     # projects.
-    # extras_require={  # Optional
+    extras_require={  # Optional
     #     'dev': ['check-manifest'],
-    #     'test': ['coverage'],
-    # },
+        'test': ['sklearn-multiflow', 'pandas', 'matplotlib'],
+    },
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.
@@ -154,7 +161,7 @@ setup(
     # http://docs.python.org/3.4/distutils/setupscript.html#installing-additional-files
     #
     # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
-    data_files=[('weather', ['weatherHistory.csv'])],  # Optional
+    # data_files=[('weather', ['weatherHistory.csv'])],  # Optional
 
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
@@ -163,11 +170,11 @@ setup(
     #
     # For example, the following would provide a command called `sample` which
     # executes the function `main` from this package when invoked:
-    entry_points={  # Optional
-        'console_scripts': [
-            'sample=sample:main',
-        ],
-    },
+    # entry_points={  # Optional
+    #    'console_scripts': [
+    #        'sample=sample:main',
+    #    ],
+    # },
 
     # List additional URLs that are relevant to your project as a dict.
     #
