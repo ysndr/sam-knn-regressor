@@ -1,19 +1,6 @@
-let
-  # Look here for information about how to generate `nixpkgs-version.json`.
-  #  → https://nixos.wiki/wiki/FAQ/Pinning_Nixpkgs
-  pinnedVersion = pin: builtins.fromJSON (builtins.readFile pin);
-  pinnedPkgs = pin:  import (builtins.fetchTarball {
-    inherit (pinnedVersion pin) url sha256;
-  }) {};
-  pkgs' = pinned: (
-    if (!isNull pinned) then pinnedPkgs pinned 
-    else import <nixpkgs> {});
-
-  hies-pkgs = import (builtins.fetchTarball {
-    url = "https://github.com/domenkozar/hie-nix/tarball/master";
-  });
-in
-{ pkgs ? pkgs' pinned, pinned ? null, enable-hie ? false }:
+{pkgs ? import (if pin == false then <nixpkgs> else pin) {},
+ pin ? ./nixpkgs.nix, ... }:
+with pkgs;
 with  import pkgs.path { 
   overlays = [ 
     (self: super: {
@@ -40,13 +27,6 @@ let
         checkPhase = ":";
       });
     };
-  };
-
-  libNN = python3Packages.buildPythonPackage rec {
-    pname = "libNearestNeighbor";
-    version = "1.0.0";
-    propagatedBuildInputs = [ python3Packages.numpy ];
-    src = ./nearestNeighbor;
   };
 
   scikit-multiflow =  python'.pkgs.buildPythonPackage rec {
@@ -93,10 +73,15 @@ let
       pykdtree
   ]);
   # --------------- Commands ----------------
-
+  shell = mkShell {
+    name = "SAMkNNReg-env";
+    buildInputs = [ python-env ];
+  
+    shellHook = ''
+      export MPLBACKEND="qt5Agg"
+    '';
+  };
 
 in {
-  #inherit (pkgs)  libyaml libiconv;
-  inherit pkgs;
-  python-env = python-env;
+  inherit shell;
 } 
