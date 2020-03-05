@@ -1,0 +1,1 @@
+unixtime,year,month,day,hour,minute,Wh_over_last_10min,corrected_nr_pulses
