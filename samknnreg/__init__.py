@@ -230,11 +230,11 @@ class SAMKNNRegressor(RegressorMixin):
         #absolute Mean Error Calculation
         self.modelError = ( (self.sampleCount-1) * self.modelError + abs(self.predict([x])-y) ) / self.sampleCount
         STMsize = len(self.STMX)
-        self.STMerror = ((STMsize-1)*self.STMerror + abs(self.STMpredict(x)-y)) / STMsize
-        LTMsize = len(self.LTMX)
-        self.LTMerror = ((LTMsize-1)*self.LTMerror + abs(self.LTMpredict(x)-y)) / LTMsize
-        size = STMsize + LTMsize
-        self.COMBerror = ((size-1)*self.COMBerror + abs(self.COMBpredict(x)-y)) / size
+
+        self.STMerror = sum([abs(self.STMpredict(x)-y) for x,y in zip(self.STMX, self.STMy)]) / STMsize
+        self.LTMerror = sum([abs(self.LTMpredict(x)-y) for x,y in zip(self.STMX, self.STMy)]) / STMsize
+        self.COMBerror = sum([abs(self.COMBpredict(x)-y) for x,y in zip(self.STMX, self.STMy)]) / STMsize
+
 
     def _adaptSTM(self):
         STMX = np.array(self.STMX)
