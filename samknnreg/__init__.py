@@ -16,7 +16,7 @@ class SAMKNNRegressor(RegressorMixin):
         test text
         """
         self.n_neighbors = n_neighbors # k
-        self.max_LTM_size = max_LTM_size # LTM size 
+        self.max_LTM_size = max_LTM_size # LTM size
         self.STMX, self.STMy, self.LTMX, self.LTMy = ([], [], [], [])
         self.STMerror, self.LTMerror, self.COMBerror, self.modelError, self.sampleCount = (0, 0, 0, 0, 0)
         self.leaf_size = leaf_size
@@ -24,7 +24,7 @@ class SAMKNNRegressor(RegressorMixin):
         self.show_plots = show_plots
         self.adaptions = 0
         self.best_mem = -1
-            
+
         #self.window = InstanceWindow(max_size=max_window_size, dtype=float)
 
 
@@ -71,7 +71,7 @@ class SAMKNNRegressor(RegressorMixin):
         self._adaptSTM()
         self._cleanLTM(x, y)
 
-    def _cleanDiscarded(self, discarded_X, discarded_y):        
+    def _cleanDiscarded(self, discarded_X, discarded_y):
         stm_tree = KDTree(np.array(self.STMX))
         STMy = np.array(self.STMy)
 
@@ -83,7 +83,7 @@ class SAMKNNRegressor(RegressorMixin):
             dist = dist[0]
             ind = ind[0]
 
-            
+
             """
             find weighted maximum difference and max distance among next n neighbours in STM
             """
@@ -101,14 +101,14 @@ class SAMKNNRegressor(RegressorMixin):
                 np.array([x]),
                 k=len(discarded_X),
                 distance_upper_bound=dist_max)
-            
+
             keep = ind < len(discarded_X)
             ind = ind[keep]
             dist = dist[keep]
 
 
             disc_w_diff = self._clean_metric(discarded_y[ind] - y, dist, dist_max)
-                        
+
             clean = ind[disc_w_diff < w_diff_max]
 
             """
@@ -129,7 +129,7 @@ class SAMKNNRegressor(RegressorMixin):
         # inverse distance weighting
         # TODO: find factor
         return np.abs(diffs) * 1/np.exp(dists/(norm))
-        
+
 
 
     def _cleanLTM(self, x, y):
@@ -139,15 +139,15 @@ class SAMKNNRegressor(RegressorMixin):
         STMy = np.array(self.STMy)
 
         stmtree = KDTree(STMX)#, self.leaf_size, metric='euclidean')
-        
-        dist, ind = stmtree.query(np.array([x]), k=self.n_neighbors)
+
+        dist, ind = stmtree.query(np.array([x]), k=self.n_neighbors, distance_upper_bound=10e100)
         dist = dist[0] # only queriing one point
         ind = ind[0] # ^
         #dist = np.where(dist < 1, 1, dist) # TODO: what about really close points?
-        
+
         # print(dist)
         dist_max = np.amax(dist)
-        
+
         qs = self._clean_metric(STMy[ind] - y, dist, dist_max)
         w_diff_max = np.amax(qs)
 
@@ -238,7 +238,7 @@ class SAMKNNRegressor(RegressorMixin):
         old_size = best_size
 
         slice_size = int(STMX.shape[0]/2)
-        
+
         while (slice_size >= 50):
             MLE = 0
 
@@ -251,28 +251,28 @@ class SAMKNNRegressor(RegressorMixin):
                 MLE += abs(pred - STMy[-slice_size+n])
 
             MLE = MLE/slice_size
-            
+
             if (MLE < best_MLE):
                 best_MLE = MLE
                 best_size = slice_size
-            
+
             slice_size = int(slice_size / 2)
-        
+
         if(old_size != best_size):
             self.adaptions += 1
 
             if( (len(self.STMX[0]) == 1 or len(self.STMX[0]) == 2) and self.show_plots):
                 fig, ax = plt.subplots(2,2, sharex=True, sharey=True, num="Adaption #" + str(self.adaptions))
-            
-            
+
+
             print("ADAPTING: old size & error: ", old_size, old_error, "new size & error: ", best_size, best_MLE)
-            
+
             discarded_X = STMX[0:-best_size, :]
             discarded_y = STMy[0:-best_size] # NOTE: multi dim y values possible?
             self.STMX = STMX[-best_size:, :].tolist()
             self.STMy = STMy[-best_size:].tolist()
             self.STMerror = best_MLE
-            
+
 
             # For Printing and visualizing the Adaptions:
             if(len(self.STMX[0]) == 1 and self.show_plots):
@@ -280,7 +280,7 @@ class SAMKNNRegressor(RegressorMixin):
             elif(len(self.STMX[0]) == 2 and self.show_plots):
                 ax[1][0].scatter(list(np.array(self.STMX)[:,0]) , list(np.array(self.STMX)[:,1]), label="STM after adaption", s=100, alpha=.5, c=self.STMy)
 
-            
+
             original_discard_size = len(discarded_X)
             # For Printing and visualizing the Adaptions:
             if(len(self.STMX[0]) == 1 and self.show_plots):
@@ -297,13 +297,13 @@ class SAMKNNRegressor(RegressorMixin):
             elif(len(self.STMX[0]) == 2 and self.show_plots):
                 ax[0][1].scatter(list(np.array(discarded_X)[:,0]) , list(np.array(discarded_X)[:,1]), label="cleaned discarded", s=100, alpha=.5, marker="+", c=discarded_y)
 
-        
+
             if (discarded_X.size):
                 self.LTMX += discarded_X.tolist()
                 self.LTMy += discarded_y.tolist()
                 print("Added", len(discarded_X), "of", original_discard_size, "to LTM. ")
                 # For Printing and visualizing the Adaptions:
-                if(len(self.STMX[0]) == 1 and self.show_plots):    
+                if(len(self.STMX[0]) == 1 and self.show_plots):
                     ax[1][1].scatter(self.LTMX, self.LTMy, label="LTM with new from STM", s=100, alpha=.2, color='C4')
                 elif(len(self.STMX[0]) == 2 and self.show_plots):
                     ax[1][1].scatter(list(np.array(self.LTMX)[:,0]) , list(np.array(self.LTMX)[:,1]), label="LTM with new from STM", s=100, alpha=.5, marker="^", c=self.LTMy)
@@ -317,38 +317,38 @@ class SAMKNNRegressor(RegressorMixin):
 
     def predict(self, X):
         """ predict
-        
-        Predicts the value of the X sample, by searching the KDTree for 
+
+        Predicts the value of the X sample, by searching the KDTree for
         the n_neighbors-Nearest Neighbors.
-        
+
         Parameters
         ----------
         X: Numpy.ndarray of shape (n_samples, n_features)
             All the samples we want to predict the label for.
-            
+
         Returns
         -------
         list
             A list containing the predicted values for all instances in X.
-        
+
         """
-        
+
         mem_list = [self.STMerror, self.LTMerror, self.COMBerror]
         best_mem_ind = np.argmin(mem_list)
         if(best_mem_ind != self.best_mem):
             print("New Best Memory: STM" if best_mem_ind == 0 else ("New Best Memory: LTM" if best_mem_ind == 1 else "New Best Memory: COMB"))
             self.best_mem = best_mem_ind
-        if (best_mem_ind == 0): 
+        if (best_mem_ind == 0):
             return np.array([self.STMpredict(x) for x in X])
-        elif (best_mem_ind == 1): 
+        elif (best_mem_ind == 1):
             return np.array([self.LTMpredict(x) for x in X])
-        elif (best_mem_ind == 2): 
+        elif (best_mem_ind == 2):
             return np.array([self.COMBpredict(x) for x in X])
 
     def fit(self, X, y):
         if (len(self.STMX) < self.n_neighbors):
-            self.LTMX = list(X[0:10,:]) 
-            self.STMX = list(X[0:10,:]) 
+            self.LTMX = list(X[0:10,:])
+            self.STMX = list(X[0:10,:])
             self.LTMy = list(y[0:10])
             self.STMy = list(y[0:10])
             self.sampleCount = 10
