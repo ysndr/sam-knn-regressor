@@ -20,6 +20,7 @@ class SAMKNNRegressor():
         self.max_LTM_size = max_LTM_size  # LTM size
         self.min_stm_size = min_stm_size
         self.STMX, self.STMy, self.LTMX, self.LTMy = (np.array([]), np.array([]), np.array([]), np.array([]))
+        self.STMTree, self.LTMTree = None, None
         self.STMerror, self.LTMerror, self.COMBerror, self.modelError, self.sampleCount = (0, 0, 0, 0, 0)
         self.leaf_size = leaf_size
         self.LTM_clean_strictness = LTM_clean_strictness
@@ -69,8 +70,11 @@ class SAMKNNRegressor():
             if self.LTMX.shape[0] == 0:
                 self.LTMX = np.array([x])
             else:
-                self.LTMX = np.append(self.LTMX,[x],axis=0)
-            self.LTMy = np.append(self.LTMy,y)
+                self.LTMX = np.append(self.LTMX, [x], axis=0)
+            self.LTMy = np.append(self.LTMy, y)
+
+            self.STMTree = KDTree(self.STMX)
+            self.LTMTree = KDTree(self.LTMX)
 
         if len(self.STMX) < self.n_neighbors:
             return
@@ -78,6 +82,9 @@ class SAMKNNRegressor():
         self._evaluateMemories(x, y)
         self._adaptSTM()
         self._cleanLTM(x, y)
+
+        self.STMTree = KDTree(self.STMX)
+        self.LTMTree = KDTree(self.LTMX)
 
     def _cleanDiscarded(self, discarded_X, discarded_y):
         stm_tree = KDTree(self.STMX)
@@ -183,18 +190,18 @@ class SAMKNNRegressor():
             self.LTMy = np.delete(LTMy, dirty, axis=0)
             # print("LTM cleaned")
 
-
-    def _predict(self, X, y, x):
+    def _predict(self, X, y, x, xtree=None):
         X = np.array(X)
         y = np.array(y)
 
-        tree = KDTree(X, X.shape[1]) #, self.leaf_size, metric='euclidean')
-        dist, ind = tree.query(np.array([x]), k=self.n_neighbors)
+        start = time.time()
+        tree = xtree or KDTree(X, X.shape[1])  # , self.leaf_size, metric='euclidean')
+        dist, ind = tree.query(np.array([x]), k=self.n_neighbors, distance_upper_bound=10e100)
 
         dist = dist[0]
         ind = ind[0]
 
-        clean = np.nonzero(dist)
+        clean = ind < X.shape[0]  # info neu
         dist = dist[clean]
         ind = ind[clean]
         if len(dist) == 0:
@@ -209,10 +216,10 @@ class SAMKNNRegressor():
         return pred / norm
 
     def STMpredict(self, x):
-        return self._predict(self.STMX, self.STMy, x)
+        return self._predict(self.STMX, self.STMy, x, self.STMTree)
 
     def LTMpredict(self, x):
-        return self._predict(self.LTMX, self.LTMy, x)
+        return self._predict(self.LTMX, self.LTMy, x, self.LTMTree)
 
     def COMBpredict(self, x):
         return self._predict(np.append(self.STMX, self.LTMX, axis=0), np.append(self.STMy, self.LTMy), x)
