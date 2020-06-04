@@ -16,8 +16,9 @@ class SAMKNNRegressor():
         """
         test text
         """
-        self.n_neighbors = n_neighbors # k
-        self.max_LTM_size = max_LTM_size # LTM size
+        self.n_neighbors = n_neighbors  # k
+        self.max_LTM_size = max_LTM_size  # LTM size
+        self.min_stm_size = min_stm_size
         self.STMX, self.STMy, self.LTMX, self.LTMy = (np.array([]), np.array([]), np.array([]), np.array([]))
         self.STMerror, self.LTMerror, self.COMBerror, self.modelError, self.sampleCount = (0, 0, 0, 0, 0)
         self.leaf_size = leaf_size
@@ -249,7 +250,7 @@ class SAMKNNRegressor():
 
         slice_size = int(STMX.shape[0]/2)
 
-        while (slice_size >= 50):
+        while (slice_size >= self.min_stm_size):
             MLE = 0
 
             for n in range(self.n_neighbors, slice_size):
