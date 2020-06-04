@@ -29,8 +29,7 @@ class SAMKNNRegressor():
 
         #self.window = InstanceWindow(max_size=max_window_size, dtype=float)
 
-
-    def partial_fit(self, X, y, sample_weight=None):
+    def partial_fit(self, X, y):
         """ Partially (incrementally) fit the model.
 
         Parameters
@@ -41,8 +40,6 @@ class SAMKNNRegressor():
         y: numpy.ndarray of shape (n_samples)
             An array-like with the target values of all samples in X.
 
-        sample_weight: numpy.ndarray of shape (n_samples), optional (default=None)
-            Samples weight. If not provided, uniform weights are assumed. Usage varies depending on the learning method.
 
         Returns
         -------
