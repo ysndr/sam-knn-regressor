@@ -66,7 +66,7 @@ class SAMKNNRegressor():
 
         # build up initial LTM
         if len(self.LTMX) < self.n_neighbors:
-            if len(self.LTMX) == 0:
+            if self.LTMX.shape[0] == 0:
                 self.LTMX = np.array([x])
             else:
                 self.LTMX = np.append(self.LTMX,[x],axis=0)
@@ -179,8 +179,8 @@ class SAMKNNRegressor():
             if (LTMX.shape[0] - len(dirty) < 5):
                 # print("LTM dirty but too small!")
                 return
-            self.LTMX = np.delete(LTMX, dirty, axis=0).tolist()
-            self.LTMy = np.delete(LTMy, dirty, axis=0).tolist()
+            self.LTMX = np.delete(LTMX, dirty, axis=0)
+            self.LTMy = np.delete(LTMy, dirty, axis=0)
             # print("LTM cleaned")
 
 
@@ -236,8 +236,8 @@ class SAMKNNRegressor():
 
 
     def _adaptSTM(self):
-        STMX = np.array(self.STMX)
-        STMy = np.array(self.STMy)
+        STMX = self.STMX
+        STMy = self.STMy
 
         best_MLE = self.STMerror
         best_size = STMX.shape[0]
@@ -308,8 +308,7 @@ class SAMKNNRegressor():
 
             if (discarded_X.size):
                 self.LTMX = np.append(self.LTMX, discarded_X, axis=0)
-                self.LTMy = np.append(self.Ltmy, discarded_y, axis=0)
-                print("Added", len(discarded_X), "of", original_discard_size, "to LTM. ")
+                self.LTMy = np.append(self.LTMy, discarded_y, axis=0)
                 # For Printing and visualizing the Adaptions:
                 if(len(self.STMX[0]) == 1 and self.show_plots):
                     ax[1][1].scatter(self.LTMX, self.LTMy, label="LTM with new from STM", s=100, alpha=.2, color='C4')
