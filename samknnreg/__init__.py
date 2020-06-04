@@ -1,17 +1,18 @@
-import numpy as np
-import math
-import sklearn.neighbors as sk
-import matplotlib
-import matplotlib.pyplot as plt
 import time
+
+import matplotlib.pyplot as plt
+import numpy as np
 from pykdtree.kdtree import KDTree
-from skmultiflow.core import RegressorMixin
 
-#from skmultiflow.utils.utils import *
 
-class SAMKNNRegressor(RegressorMixin):
+# from skmultiflow.core import RegressorMixin
 
-    def __init__(self, n_neighbors=5, max_LTM_size=5000, leaf_size=30, LTM_clean_strictness=0.5, show_plots=False):
+# from skmultiflow.utils.utils import *
+
+class SAMKNNRegressor():
+
+    def __init__(self, n_neighbors=5, max_LTM_size=5000, min_stm_size=50, leaf_size=30, LTM_clean_strictness=0.5,
+                 clean_metric_form=1, show_plots=False):
         """
         test text
         """
