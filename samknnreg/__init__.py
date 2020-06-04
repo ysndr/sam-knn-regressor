@@ -92,9 +92,9 @@ class SAMKNNRegressor():
 
         clean_mask = np.zeros(discarded_X.shape[0], dtype=bool)
 
-        for x,y in zip(self.STMX, self.STMy):
+        for x, y in zip(self.STMX, self.STMy):
             # searching for points from the stm in the stm will also return that points, so we query one more to get k neighbours
-            dist, ind = stm_tree.query(np.array([x]), k=self.n_neighbors +1)
+            dist, ind = stm_tree.query(np.array([x]), k=self.n_neighbors + 1)
             dist = dist[0]
             ind = ind[0]
 
@@ -230,11 +230,10 @@ class SAMKNNRegressor():
         self.STMerror += math.log(1+abs(self.STMpredict(x)-y))
         self.LTMerror += math.log(1+abs(self.LTMpredict(x)-y))
         self.COMBerror += math.log(1+abs(self.COMBpredict(x)-y))
-        #print("Errors:  STM: ", self.STMerror, "  LTM: ", self.LTMerror, "  COMB: ", self.COMBerror)
         """
 
-        #absolute Mean Error Calculation
-        self.modelError = ( (self.sampleCount-1) * self.modelError + abs(self.predict([x])-y) ) / self.sampleCount
+        # absolute Mean Error Calculation
+        # self.modelError = ( (self.sampleCount-1) * self.modelError + abs(self.predict([x])-y) ) / self.sampleCount
         STMsize = len(self.STMX)
 
         self.STMerror = sum([abs(self.STMpredict(x)-y) for x,y in zip(self.STMX, self.STMy)]) / STMsize
@@ -252,18 +251,18 @@ class SAMKNNRegressor():
         old_error = best_MLE
         old_size = best_size
 
-        slice_size = int(STMX.shape[0]/2)
+        slice_size = int(STMX.shape[0] / 2)
 
         while (slice_size >= self.min_stm_size):
             MLE = 0
 
             for n in range(self.n_neighbors, slice_size):
                 pred = self._predict(
-                    STMX[-slice_size:-slice_size+n, :],
-                    STMy[-slice_size:-slice_size+n], # NOTE: multi dim y values possible?
-                    STMX[-slice_size+n, :])
+                    STMX[-slice_size:-slice_size + n, :],
+                    STMy[-slice_size:-slice_size + n],  # NOTE: multi dim y values possible?
+                    STMX[-slice_size + n, :])
 
-                MLE += abs(pred - STMy[-slice_size+n])
+                MLE += abs(pred - STMy[-slice_size +n])
 
             MLE = MLE/slice_size
 
@@ -276,8 +275,8 @@ class SAMKNNRegressor():
         if(old_size != best_size):
             self.adaptions += 1
 
-            if( (len(self.STMX[0]) == 1 or len(self.STMX[0]) == 2) and self.show_plots):
-                fig, ax = plt.subplots(2,2, sharex=True, sharey=True, num="Adaption #" + str(self.adaptions))
+            if ((self.STMX.shape[1] == 1 or len(self.STMX[0]) == 2) and self.show_plots):
+                fig, ax = plt.subplots(2, 2, sharex=True, sharey=True, num="Adaption #" + str(self.adaptions))
 
 
             print("ADAPTING: old size & error: ", old_size, old_error, "new size & error: ", best_size, best_MLE)
@@ -310,21 +309,21 @@ class SAMKNNRegressor():
             if(len(self.STMX[0]) == 1 and self.show_plots):
                 ax[0][1].scatter(discarded_X, discarded_y, label="cleaned discarded -> LTM", s=100, alpha=.2, color='C3')
             elif(len(self.STMX[0]) == 2 and self.show_plots):
-                ax[0][1].scatter(list(np.array(discarded_X)[:,0]) , list(np.array(discarded_X)[:,1]), label="cleaned discarded", s=100, alpha=.5, marker="+", c=discarded_y)
-
+                ax[0][1].scatter(list(np.array(discarded_X)[:,0]), list(np.array(discarded_X)[:,1]), label="cleaned discarded", s=100, alpha=.5, marker="+", c=discarded_y)
 
             if (discarded_X.size):
                 self.LTMX = np.append(self.LTMX, discarded_X, axis=0)
                 self.LTMy = np.append(self.LTMy, discarded_y, axis=0)
                 # For Printing and visualizing the Adaptions:
-                if(len(self.STMX[0]) == 1 and self.show_plots):
+                if (len(self.STMX[0]) == 1 and self.show_plots):
                     ax[1][1].scatter(self.LTMX, self.LTMy, label="LTM with new from STM", s=100, alpha=.2, color='C4')
-                elif(len(self.STMX[0]) == 2 and self.show_plots):
-                    ax[1][1].scatter(list(np.array(self.LTMX)[:,0]) , list(np.array(self.LTMX)[:,1]), label="LTM with new from STM", s=100, alpha=.5, marker="^", c=self.LTMy)
-            else:
-                print("All discarded Samples are dirty")
+                elif (len(self.STMX[0]) == 2 and self.show_plots):
+                    ax[1][1].scatter(list(np.array(self.LTMX)[:, 0]), list(np.array(self.LTMX)[:, 1]),
+                                     label="LTM with new from STM", s=100, alpha=.5, marker="^", c=self.LTMy)
+            # else:
+            # print("All discarded Samples are dirty")
 
-            if( (len(self.STMX[0]) == 1 or len(self.STMX[0]) == 2) and self.show_plots):
+            if ((len(self.STMX[0]) == 1 or len(self.STMX[0]) == 2) and self.show_plots):
                 plt.figlegend()
                 plt.tight_layout()
                 plt.show(block=False)
